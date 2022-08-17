@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  mysql-database:
+    image: "mysql:8"
+    ports:
+      - "3306:33060"
+    healthcheck:
+      test: ["CMD", "mysql", "--user=$${MYSQL_USER}", "--password=$${MYSQL_PASSWORD}", "--silent", "--execute", "\"SHOW DATABASES;\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    command: --init-file /tmp/init.sql
+    volumes:
+      - ./utils/init.sql:/tmp/init.sql
+      - database:/var/lib/mysql
+    environment:
+      - MYSQL_USER=pubobot
+      - MYSQL_PASSWORD=generate_your_own
+      - MYSQL_DATABASE=pubodb
+      - MYSQL_ROOT_USER=generate_your_own
+      - MYSQL_ROOT_PASSWORD=generate_your_own
+
+  pubobot:
+    depends_on:
+      mysql-database:
+        condition: service_healthy # Do not start pubobot unless the mysql service is online and healthy
+
+    build: .
+    volumes:
+      - ./config.cfg:/opt/pubobot/config.cfg
+    restart: unless-stopped
+
+volumes:
+  database:
