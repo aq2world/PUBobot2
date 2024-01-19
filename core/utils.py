@@ -2,8 +2,8 @@
 import random
 import re
 from prettytable import PrettyTable, MARKDOWN
-from discord import Embed
-from discord.utils import get, find, escape_markdown
+from nextcord import Embed
+from nextcord.utils import get, find, escape_markdown
 from datetime import timedelta
 
 
@@ -90,11 +90,11 @@ def parse_duration(string):
 
 	if re.match(r"^\d\d:\d\d:\d\d$", string):
 		x = sum(x * int(t) for x, t in zip([3600, 60, 1], string.split(":")))
-		return x
+		return timedelta(seconds=x)
 
-	elif re.match(r"^([\d\.]+\w *)+$", string):
+	elif re.match(r"^(\d+\w ?)+$", string):
 		duration = 0
-		for part in re.findall(r"[\d\.]+\w", string):
+		for part in re.findall(r"\d+\w", string):
 			val = float(part[:-1])
 			if part[-1] == 's':
 				duration += val
@@ -112,7 +112,7 @@ def parse_duration(string):
 				duration += val * 365 * 24 * 60
 			else:
 				raise ValueError()
-		return int(duration)
+		return timedelta(seconds=int(duration))
 	else:
 		raise ValueError()
 
@@ -150,3 +150,23 @@ def discord_table(header, rows):
 	text += "\n" + "-" * len(content[0]) + "\n"
 	text += "\n".join(line.strip("|") for line in content[1:]) + "\n```"
 	return text
+
+
+def split_big_text(string: str, limit: int = 2000, delimiter: str = None, prefix: str = "", suffix: str = ""):
+	""" Yields pieces with limited length and prefix and suffix attached. Split by delimiter if possible. """
+	_limit = limit-len(prefix+suffix)
+	while len(string) > _limit:
+		if delimiter and (pos := string[:_limit].rfind(delimiter)) != -1:
+			yield prefix + string[:pos+len(delimiter)] + suffix
+			string = string[pos+len(delimiter):]
+		else:
+			yield prefix + string[:_limit] + suffix
+			string = string[_limit:]
+	if len(string):
+		yield prefix + string + suffix
+
+
+class SafeTemplateDict(dict):
+	""" returns {key} for missing keys, useful for string.format_map() """
+	def __missing__(self, key):
+		return '{'+key+'}'

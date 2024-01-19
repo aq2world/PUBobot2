@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 from discord import ChannelType, Activity, ActivityType
 from traceback import format_exc
+=======
+import traceback
+from nextcord import ChannelType, Activity, ActivityType
+>>>>>>> 7957a525816023bb8a8739ade2d18d66963cfbf7
 
 from core.client import dc
 from core.console import log
@@ -8,13 +13,26 @@ import bot
 
 
 @dc.event
+async def on_init():
+	await bot.stats.check_match_id_counter()
+
+
+@dc.event
 async def on_think(frame_time):
 	for match in bot.active_matches:
 		try:
 			await match.think(frame_time)
 		except Exception as e:
+<<<<<<< HEAD
 			log.error(f"Error at match.think(): {str(e)}. Match_id={match.id}. Traceback:")
 			log.error(str(format_exc()))
+=======
+			log.error("\n".join([
+				f"Error at Match.think().",
+				f"match_id: {match.id}).",
+				f"{str(e)}. Traceback:\n{traceback.format_exc()}=========="
+			]))
+>>>>>>> 7957a525816023bb8a8739ade2d18d66963cfbf7
 			bot.active_matches.remove(match)
 			break
 	await bot.expire.think(frame_time)
@@ -36,10 +54,6 @@ async def on_message(message):
 	elif message.content == '!disable_pubobot':
 		await bot.disable_channel(message)
 
-	qc = bot.queue_channels.get(message.channel.id)
-	if qc:
-		await qc.process_msg(message)
-
 
 @dc.event
 async def on_reaction_add(reaction, user):
@@ -55,45 +69,57 @@ async def on_reaction_remove(reaction, user):  # FIXME: this event does not get 
 
 @dc.event
 async def on_ready():
-	await dc.change_presence(activity=Activity(type=ActivityType.watching, name=cfg.STATUS, url="https://pubobot.leshaka.xyz/"))
-	if not dc.was_ready:  # Connected for the first time, load everything
-		dc.was_ready = True
-		bot.last_match_id = await bot.stats.last_match_id()
+	await dc.change_presence(activity=Activity(type=ActivityType.watching, name=cfg.STATUS))
+	if not bot.bot_was_ready:  # Connected for the first time, load everything
 		log.info(f"Logged in discord as '{dc.user.name}#{dc.user.discriminator}'.")
 		log.info("Loading queue channels...")
 		for channel_id in await bot.QueueChannel.cfg_factory.p_keys():
 			channel = dc.get_channel(channel_id)
 			if channel:
 				bot.queue_channels[channel_id] = await bot.QueueChannel.create(channel)
-				await bot.queue_channels[channel_id].update_info()
+				await bot.queue_channels[channel_id].update_info(channel)
 				log.info(f"\tInit channel {channel.guild.name}>#{channel.name} successful.")
 			else:
 				log.info(f"\tCould not reach a text channel with id {channel_id}.")
 
 		await bot.load_state()
+		bot.bot_was_ready = True
+		bot.bot_ready = True
+		log.info("Done.")
 	else:  # Reconnected, fetch new channel objects
+		bot.bot_ready = True
 		log.info("Reconnected to discord.")
-		for qc in list(bot.queue_channels.values()):
-			if channel := dc.get_channel(qc.id) is not None:
-				qc.channel = channel
-			else:
-				bot.queue_channels.pop(qc.id)
-				log.error("ERROR! Channel missing after reconnect {}>#{} ({})!".format(
-					qc.cfg.cfg_info.get('guild_name'), qc.cfg.cfg_info.get('channel_name'), qc.id
-				))
-
-	log.info("Done.")
 
 
 @dc.event
-async def on_member_update(before, after):
-	if str(after.status) in ['idle', 'offline']:
-		if after.id not in bot.allow_offline:
-			for qc in filter(lambda i: i.channel and i.channel.guild.id == after.guild.id, bot.queue_channels.values()):
-				await qc.auto_remove(after)
+async def on_disconnect():
+	log.info("Connection to discord is lost.")
+	bot.bot_ready = False
+
+
+@dc.event
+async def on_resumed():
+	log.info("Connection to discord is resumed.")
+	if bot.bot_was_ready:
+		bot.bot_ready = True
+
+
+@dc.event
+async def on_presence_update(before, after):
+	if after.raw_status not in ['idle', 'offline']:
+		return
+	if after.id in bot.allow_offline:
+		return
+
+	for qc in filter(lambda i: i.guild_id == after.guild.id, bot.queue_channels.values()):
+		if after.raw_status == "offline" and qc.cfg.remove_offline:
+			await qc.remove_members(after, reason="offline")
+
+		if after.raw_status == "idle" and qc.cfg.remove_afk and bot.expire.get(qc, after) is None:
+			await qc.remove_members(after, reason="afk", highlight=True)
 
 
 @dc.event
 async def on_member_remove(member):
-	for qc in filter(lambda i: i.channel and i.channel.guild.id == member.guild.id, bot.queue_channels.values()):
+	for qc in filter(lambda i: i.id == member.guild.id, bot.queue_channels.values()):
 		await qc.remove_members(member, reason="left guild")

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from discord import Forbidden
 
 from core.console import log
-from core.cfg_factory import CfgFactory, Variables, VariableTable
-from core.utils import get_nick
+from core.cfg_factory import FactoryTable, CfgFactory, Variables, VariableTable
+from core.utils import get_nick, get, SafeTemplateDict
+from core.client import dc
 
 import bot
 
@@ -11,11 +11,10 @@ import bot
 class PickupQueue:
 
 	cfg_factory = CfgFactory(
-		"pq_configs",
-		p_key="pq_id",
-		f_key="channel_id",
-		icon="pq.png",
+		table=FactoryTable(name="pq_configs", p_key="pq_id", f_key="channel_id"),
+		name="pq_config",
 		sections=["General", "Teams", "Appearance", "Maps"],
+		icon='pq.png',
 		variables=[
 			Variables.StrVar(
 				"name",
@@ -247,9 +246,7 @@ class PickupQueue:
 				verify=lambda n: 2 <= n <= 9,
 				verify_message="Vote maps number must be between 2 and 9.",
 				description="Set to enable map voting, this requires check-in timeout to be set."
-			)
-		],
-		tables=[
+			),
 			VariableTable(
 				"aliases", display="Aliases", section="General",
 				description="Other names for this queue, you can also group queues by giving them a same alias.",
@@ -274,28 +271,35 @@ class PickupQueue:
 		return name
 
 	@classmethod
-	async def create(cls, qc, name, size=2):
-		cfg = await cls.cfg_factory.spawn(qc.channel.guild, f_key=qc.channel.id)
+	async def create(cls, ctx, name, size=2):
+		cfg = await cls.cfg_factory.spawn(ctx.channel.guild, f_key=ctx.channel.id)
 		await cfg.update({"name": name, "size": str(size)})
-		return cls(qc, cfg)
+		return cls(ctx.qc, cfg)
 
 	def serialize(self):
 		return dict(
+			queue_type=self.__class__.__name__,
 			queue_id=self.id,
 			channel_id=self.qc.id,
 			players=[i.id for i in self.queue if i]
 		)
 
-	async def from_json(self, data):
-		players = [self.qc.channel.guild.get_member(user_id) for user_id in data['players']]
+	@classmethod
+	async def from_json(cls, data):
+		if (qc := bot.queue_channels.get(data['channel_id'])) is None:
+			raise bot.Exc.ValueError("QueueChannel not found.")
+		if (q := get(qc.queues, id=data['queue_id'])) is None:
+			raise bot.Exc.ValueError("Queue not found.")
+		if (guild := dc.get_guild(qc.guild_id)) is None:
+			raise bot.Exc.ValueError("Guild not found.")
+
+		players = [guild.get_member(user_id) for user_id in data['players']]
 		if None in players:
-			await self.qc.error(f"Unable to load queue **{self.cfg.name}**, error fetching guild members.")
-			return
-		self.queue = players
-		if self.length:
-			if self in bot.active_queues:
-				bot.active_queues.remove(self)
-			bot.active_queues.append(self)
+			raise bot.Exc.ValueError(f"Error fetching guild members.")
+
+		q.queue = players
+		if q.length and q not in bot.active_queues:
+			bot.active_queues.append(q)
 
 	def __init__(self, qc, cfg):
 		self.qc = qc
@@ -320,22 +324,37 @@ class PickupQueue:
 	def length(self):
 		return len(self.queue)
 
-	async def promote(self):
+	def _match_cfg(self):
+		return dict(
+			team_names=self.cfg.team_names.split(" ") if self.cfg.team_names else None,
+			team_emojis=self.cfg.team_emojis.split(" ") if self.cfg.team_emojis else None,
+			ranked=self.cfg.ranked, pick_captains=self.cfg.pick_captains,
+			captains_role_id=self.cfg.captains_role.id if self.cfg.captains_role else None,
+			pick_teams=self.cfg.pick_teams, pick_order=self.cfg.pick_order,
+			maps=[i['name'] for i in self.cfg.maps], vote_maps=self.cfg.vote_maps,
+			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
+			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
+			start_msg=self.cfg.start_msg, server=self.cfg.server
+		)
+
+	async def promote(self, ctx):
 		promotion_role = self.cfg.promotion_role or self.qc.cfg.promotion_role
 		promotion_msg = self.cfg.promotion_msg or self.qc.gt("{role} Please add to **{name}** pickup, `{left}` players left!")
-		promotion_msg = promotion_msg.format(
+		promotion_msg = promotion_msg.format_map(SafeTemplateDict(
 			role=promotion_role.mention if promotion_role else "",
 			name=self.name,
 			left=self.cfg.size-self.length
-		)
+		))
 
 		if (
 			promotion_role and not promotion_role.mentionable and
-			self.qc.channel.guild.me and not self.qc.channel.guild.me.guild_permissions.mention_everyone
+			ctx.channel.guild.me and not ctx.channel.guild.me.guild_permissions.mention_everyone
 		):
 			raise bot.Exc.PermissionError("Insufficient permissions to ping the promotion role.")
 		else:
-			await self.qc.channel.send(promotion_msg)
+			# answers on /slash commands do not ping, so have to answer sth on /slash command first before sending ctx.notice
+			await ctx.ignore(ctx.qc.gt("Sending **{queue}** promotion...").format(queue=self.name))
+			await ctx.notice(promotion_msg)
 
 	async def reset(self):
 		self.queue = []
@@ -351,7 +370,7 @@ class PickupQueue:
 				self.qc.gt("You are not allowed to add to {queues} queues.".format(queues=self.name))
 			)
 
-	async def add_member(self, member):
+	async def add_member(self, ctx, member):
 		if (
 			self.cfg.blacklist_role and self.cfg.blacklist_role in member.roles
 			or self.cfg.whitelist_role and self.cfg.whitelist_role not in member.roles
@@ -365,7 +384,7 @@ class PickupQueue:
 				bot.active_queues.append(self)
 
 			if len(self.queue) == self.cfg.size and self.cfg.autostart:
-				await self.start()
+				await self.start(ctx)
 				return bot.Qr.QueueStarted
 
 			return bot.Qr.Success
@@ -382,7 +401,7 @@ class PickupQueue:
 			self.queue.remove(m)
 		return members
 
-	async def start(self):
+	async def start(self, ctx):
 		if len(self.queue) < 2:
 			# raise bot.Exc.PubobotException(self.qc.gt("Not enough players to start the queue."))
 			return
@@ -390,48 +409,63 @@ class PickupQueue:
 		players = list(self.queue)
 		dm_text = self.cfg.start_direct_msg or self.qc.gt("**{queue}** pickup has started @ {channel}!")
 		await self.qc.queue_started(
+			ctx,
 			members=players,
-			message=dm_text.format(
+			message=dm_text.format_map(SafeTemplateDict(
 				queue=self.name,
-				channel=self.qc.channel.mention,
+				channel=ctx.channel.mention,
 				server=self.cfg.server
-			)
+			))
 		)
 		if self.cfg.team_size:
 			team_size = min(int(self.cfg.size / 2), int(self.cfg.team_size))
 		else:
 			team_size = int(self.cfg.size / 2)
 
-		await bot.Match.new(
-			self, self.qc, players,
-			team_names=self.cfg.team_names.split(" ") if self.cfg.team_names else None,
-			team_emojis=self.cfg.team_emojis.split(" ") if self.cfg.team_emojis else None,
-			ranked=self.cfg.ranked, team_size=team_size, pick_captains=self.cfg.pick_captains,
-			captains_role_id=self.cfg.captains_role.id if self.cfg.captains_role else None,
-			pick_teams=self.cfg.pick_teams, pick_order=self.cfg.pick_order,
-			maps=[i['name'] for i in self.cfg.tables.maps], vote_maps=self.cfg.vote_maps,
-			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
-			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
-			start_msg=self.cfg.start_msg, server=self.cfg.server
-		)
+		await bot.Match.new(ctx, self, players, team_size=team_size, **self._match_cfg())
 
-	async def fake_ranked_match(self, winners, losers, draw=False):
+	async def split(self, ctx, group_size: int = None, sort_by_rating: bool = False):
+		group_size = group_size or len(self.queue)//2
+
+		if len(self.queue) < group_size or group_size < 2:
+			raise bot.Exc.PubobotException(self.qc.gt("Not enough players to start the queue."))
+
+		if sort_by_rating:
+			ratings = {p['user_id']: p['rating'] for p in await ctx.qc.rating.get_players((p.id for p in self.queue))}
+			self.queue = sorted(self.queue, key=lambda p: ratings[p.id], reverse=True)
+
+		groups = [self.queue[i-group_size:i] for i in range(group_size, len(self.queue)+1, group_size)]
+		for group in groups:
+			dm_text = self.cfg.start_direct_msg or self.qc.gt("**{queue}** pickup has started @ {channel}!")
+			await self.qc.queue_started(
+				ctx,
+				members=group,
+				message=dm_text.format_map(SafeTemplateDict(
+					queue=self.name,
+					channel=ctx.channel.mention,
+					server=self.cfg.server
+				))
+			)
+
+			await bot.Match.new(ctx, self, group, team_size=group_size//2, **self._match_cfg())
+
+	async def fake_ranked_match(self, ctx, winners, losers, draw=False):
 		if not self.cfg.ranked:
 			raise bot.Exc.ValueError("Specified queue is not ranked.")
 
 		await bot.Match.fake_ranked_match(
-			self, self.qc, winners, losers, draw=draw,
+			ctx, self, self.qc, winners, losers, draw=draw,
 			team_names=self.cfg.team_names.split(" ") if self.cfg.team_names else None,
 		)
 
-	async def revert(self, not_ready, ready):
+	async def revert(self, ctx, not_ready, ready):
 		old_players = list(self.queue)
 		self.queue = list(ready)
 		if self.cfg.autostart:
 			while len(self.queue) < self.cfg.size and len(old_players):
 				self.queue.append(old_players.pop(0))
 			if len(self.queue) >= self.cfg.size:
-				await self.start()
+				await self.start(ctx)
 				self.queue = list(old_players)
 			else:
 				for p in ready:
@@ -441,6 +475,6 @@ class PickupQueue:
 			for p in ready:
 				await self.qc.update_expire(p)
 
-		await self.qc.update_topic(force_announce=True)
+		await ctx.notice(self.qc.topic)
 		if self not in bot.active_queues and self.length:
 			bot.active_queues.append(self)

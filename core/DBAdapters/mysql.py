@@ -12,6 +12,7 @@ class Types:
 	float = "FLOAT"
 	str = "VARCHAR(191)"
 	text = "VARCHAR(2000)"
+	dict = "MEDIUMTEXT"
 
 
 reference_options = dict(
@@ -62,6 +63,7 @@ class Adapter:
 			async with conn.cursor() as cur:
 				try:
 					await cur.execute(*args)
+					return cur.lastrowid
 				except Exception as e:
 					self.wrap_exc(e)
 
@@ -124,10 +126,11 @@ class Adapter:
 
 	@staticmethod
 	def _mysql_update(table, columns, keys):
-		return "UPDATE {table} SET {columns} WHERE {keys}".format(
+		where = " WHERE {}".format(" AND ".join(["`{}`=%s".format(i) for i in keys])) if len(keys) else ""
+		return "UPDATE {table} SET {columns}{where}".format(
 			table=table,
 			columns=",".join(["`{}`=%s".format(i) for i in columns]),
-			keys=" AND ".join(["`{}`=%s".format(i) for i in keys])
+			where=where
 		)
 
 	async def create_table(self, table):
@@ -149,9 +152,10 @@ class Adapter:
 
 	async def _ensure_table(self, table):
 		table = {**table_blank, **table}
-		columns = await self.fetchall(
-			"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{}'".format(table['tname'])
-		)
+		columns = await self.fetchall("\n".join((
+			"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS",
+			"WHERE TABLE_NAME = '{}' AND TABLE_SCHEMA = '{}'".format(table['tname'], self.dbName)
+		)))
 		columns = {i['COLUMN_NAME']: i['DATA_TYPE'] for i in columns}
 
 		# Create table if not exist
@@ -212,9 +216,10 @@ class Adapter:
 
 	async def insert(self, table, d, on_dublicate=None):
 		request = self._mysql_insert(d.keys(), table, on_dublicate)
-		await self.execute(request, list(d.values()))
+		return await self.execute(request, list(d.values()))
 
-	async def update(self, table, d, keys):
+	async def update(self, table, d, keys=None):
+		keys = keys or {}
 		request = self._mysql_update(table, d.keys(), keys.keys())
 		await self.execute(request, list(d.values()) + list(keys.values()))
 
