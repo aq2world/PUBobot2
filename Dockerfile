@@ -4,6 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN adduser -D -s /bin/bash -u 1001 pubobot
 USER pubobot
 COPY PUBobot2.py requirements.txt /home/pubobot/
+RUN mkdir -p /home/pubobot/locales/compiled
 WORKDIR /home/pubobot/
 RUN pip install -r requirements.txt
 
