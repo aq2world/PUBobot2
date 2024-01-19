@@ -1,7 +1,7 @@
-FROM python:3.9
+FROM python:3.9-alpine
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN useradd -ms /bin/bash -u 1001 pubobot
+RUN adduser -D -s /bin/bash -u 1001 pubobot
 USER pubobot
 COPY PUBobot2.py requirements.txt /home/pubobot/
 WORKDIR /home/pubobot/

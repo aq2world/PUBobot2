@@ -17,7 +17,6 @@ from . import SlashContext, autocomplete, groups
 
 # Read the environment variable and convert the string back to a list
 dc_slash_servers = os.environ.get('DC_SLASH_SERVERS').split(',') if os.environ.get('DC_SLASH_SERVERS') else []
-print(f"{dc_slash_servers}")
 # Use dc_slash_servers in your code
 guild_kwargs = dict(guild_ids=dc_slash_servers) if len(dc_slash_servers) else dict()
 
