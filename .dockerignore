@@ -1,0 +1,5 @@
+Dockerfile
+README.md
+COMMANDS.md
+venv
+compile_locales.sh

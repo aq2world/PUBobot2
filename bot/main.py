@@ -5,6 +5,7 @@ import json
 from core.console import log
 from core.config import cfg
 from core.utils import error_embed, ok_embed, get
+import os
 
 import bot
 
@@ -16,9 +17,10 @@ allow_offline = []  # [user_id]
 last_match_id = None
 auto_ready = dict()  # {user.id: timestamp}
 
+DC_OWNER_ID = cfg.DC_OWNER_ID if cfg.DC_OWNER_ID else os.environ["DC_OWNER_ID"]
 
 async def enable_channel(message):
-	if not (message.author.id == cfg.DC_OWNER_ID or message.channel.permissions_for(message.author).administrator):
+	if not (message.author.id == DC_OWNER_ID or message.channel.permissions_for(message.author).administrator):
 		await message.channel.send(embed=error_embed(
 			"One must posses the guild administrator permissions in order to use this command."
 		))
@@ -33,7 +35,7 @@ async def enable_channel(message):
 
 
 async def disable_channel(message):
-	if not (message.author.id == cfg.DC_OWNER_ID or message.channel.permissions_for(message.author).administrator):
+	if not (message.author.id == DC_OWNER_ID or message.channel.permissions_for(message.author).administrator):
 		await message.channel.send(embed=error_embed(
 			"One must posses the guild administrator permissions in order to use this command."
 		))

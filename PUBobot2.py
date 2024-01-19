@@ -9,6 +9,7 @@ import queue
 import discord
 from asyncio import sleep as asleep
 from asyncio import iscoroutine
+import os
 
 # Load bot core
 from core import config, console, database, locales, cfg_factory
@@ -96,9 +97,10 @@ async def think():
 	loop.stop()
 
 # Login to discord
+DC_BOT_TOKEN = os.environ.get('DC_BOT_TOKEN') if os.environ.get('DC_BOT_TOKEN') else config.cfg.DC_BOT_TOKEN
+
 loop = asyncio.get_event_loop()
 loop.create_task(think())
-loop.create_task(dc.start(config.cfg.DC_BOT_TOKEN))
-
+loop.create_task(dc.start(DC_BOT_TOKEN))
 log.info("Connecting to discord...")
 loop.run_forever()

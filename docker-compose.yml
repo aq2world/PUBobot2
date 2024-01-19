@@ -1,0 +1,19 @@
+version: '3'
+services:
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: do_your_due_diligence_here_to_protect_yourself
+    ports:
+      - "3306:3306"
+  pubobot:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    depends_on:
+      - mysql
+    environment:
+      - DC_BOT_TOKEN=value # Bot Token
+      - DC_OWNER_ID=value # Owner ID (your Discord Developer ID)
+      - DB_URI=mysql://username:password@mysql:3306/pubodb # MySQL URI
+    
