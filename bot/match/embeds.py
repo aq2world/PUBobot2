@@ -1,4 +1,4 @@
-from discord import Embed, Colour, Streaming
+from nextcord import Embed, Colour, Streaming
 from core.client import dc
 from core.utils import get_nick, join_and
 
@@ -11,7 +11,7 @@ class Embeds:
 		# self.
 		self.footer = dict(
 			text=f"Match id: {self.m.id}",
-			icon_url=f"https://cdn.discordapp.com/avatars/{dc.user.id}/{dc.user.avatar}.png?size=64"
+			icon_url=dc.user.avatar.with_size(32)
 			# icon_url="https://cdn.discordapp.com/avatars/240843400457355264/a51a5bf3b34d94922fd60751ba1d60ab.png?size=64"
 		)
 
@@ -93,7 +93,7 @@ class Embeds:
 			)
 
 			if len(self.m.teams[0]) and len(self.m.teams[1]):
-				msg = self.m.gt("Pick players with `{prefix}pick @player` command.").format(prefix=self.m.qc.cfg.prefix)
+				msg = self.m.gt("Pick players with `/pick @player` command.")
 				pick_step = len(self.m.teams[0]) + len(self.m.teams[1]) - 2
 				picker_team = self.m.teams[self.m.draft.pick_order[pick_step]] if pick_step < len(self.m.draft.pick_order)-1 else None
 				if picker_team:

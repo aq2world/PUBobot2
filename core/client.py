@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import discord
+import nextcord
 from asyncio import iscoroutinefunction
 from core.console import log
 
@@ -36,11 +36,10 @@ class FakeMember:
 		pass
 
 
-class DiscordClient(discord.Client):
+class DiscordClient(nextcord.Client):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-		self.was_ready = False
 		self.events = dict(on_init=[], on_think=[], on_exit=[])
 		self.commands = dict()
 
@@ -80,9 +79,10 @@ class DiscordClient(discord.Client):
 		return wrapper
 
 
-intents = discord.Intents.default()
+intents = nextcord.Intents.default()
 intents.typing = False
 intents.presences = True
 intents.members = True
+intents.message_content = True
 intents.bans = False
 dc = DiscordClient(intents=intents)
