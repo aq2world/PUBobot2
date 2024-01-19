@@ -6,6 +6,7 @@ from core.client import dc
 from core.utils import error_embed, ok_embed, parse_duration, get_nick
 from core.console import log
 from core.config import cfg
+import os
 
 import bot
 
@@ -13,8 +14,12 @@ import bot
 from . import SlashContext, autocomplete, groups
 
 
-guild_kwargs = dict(guild_ids=cfg.DC_SLASH_SERVERS) if len(cfg.DC_SLASH_SERVERS) else dict()
 
+# Read the environment variable and convert the string back to a list
+dc_slash_servers = os.environ.get('DC_SLASH_SERVERS').split(',') if os.environ.get('DC_SLASH_SERVERS') else []
+print(f"{dc_slash_servers}")
+# Use dc_slash_servers in your code
+guild_kwargs = dict(guild_ids=dc_slash_servers) if len(dc_slash_servers) else dict()
 
 def _parse_duration(ctx: SlashContext, s: str):
 	try:

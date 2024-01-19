@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-from discord import ChannelType, Activity, ActivityType
-from traceback import format_exc
-=======
 import traceback
 from nextcord import ChannelType, Activity, ActivityType
->>>>>>> 7957a525816023bb8a8739ade2d18d66963cfbf7
 
 from core.client import dc
 from core.console import log
@@ -23,16 +18,11 @@ async def on_think(frame_time):
 		try:
 			await match.think(frame_time)
 		except Exception as e:
-<<<<<<< HEAD
-			log.error(f"Error at match.think(): {str(e)}. Match_id={match.id}. Traceback:")
-			log.error(str(format_exc()))
-=======
 			log.error("\n".join([
 				f"Error at Match.think().",
 				f"match_id: {match.id}).",
 				f"{str(e)}. Traceback:\n{traceback.format_exc()}=========="
 			]))
->>>>>>> 7957a525816023bb8a8739ade2d18d66963cfbf7
 			bot.active_matches.remove(match)
 			break
 	await bot.expire.think(frame_time)
