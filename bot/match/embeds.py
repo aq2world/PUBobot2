@@ -53,8 +53,12 @@ class Embeds:
 				]),
 				inline=False
 			)
-		embed.set_footer(**self.footer)
+		if self.m.check_in.image:
+			embed.set_image(url="attachment://"+self.m.check_in.image['name'])
+		if self.m.check_in.thumbnail:
+			embed.set_thumbnail(url="attachment://"+self.m.check_in.thumbnail['name'])
 
+		embed.set_footer(**self.footer)
 		return embed
 
 	def draft(self):
