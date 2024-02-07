@@ -30,7 +30,7 @@ class Match:
 		teams=None, team_names=['Alpha', 'Beta'], team_emojis=None, ranked=False,
 		team_size=1, pick_captains="no captains", captains_role_id=None, pick_teams="draft",
 		pick_order=None, maps=[], vote_maps=0, map_count=0, check_in_timeout=0,
-		check_in_discard=True, match_lifetime=3*60*60, start_msg=None, server=None, show_streamers=True
+		check_in_discard=True, match_lifetime=3*60*60, start_msg=None, server=None, servers=None, show_streamers=True
 	)
 
 	class Team(list):
@@ -62,11 +62,18 @@ class Match:
 		match_id = await bot.stats.next_match()
 		match = cls(match_id, queue, ctx.qc, players, ratings, **kwargs)
 		# Prepare the Match object
+
+		# Randomize server if multiple servers defined
+		if match.cfg['servers']:
+			match.cfg['server'] = match.random_server(match.cfg['servers'], bot.active_servers)
+			bot.active_servers.append(match.cfg['server'])	
+
 		match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.last_maps)
 		match.init_captains(match.cfg['pick_captains'], match.cfg['captains_role_id'])
 		match.init_teams(match.cfg['pick_teams'])
 		if match.ranked:
 			match.states.append(match.WAITING_REPORT)
+
 		bot.active_matches.append(match)
 
 	@classmethod
@@ -183,6 +190,12 @@ class Match:
 				maps.remove(last_map)
 
 		return random.sample(maps, min(map_count, len(maps)))
+
+	@staticmethod
+	def random_server(servers, occupied):
+		server_names = [srv['name'] for srv in servers]
+		server_pool = [srv for srv in server_names if srv not in occupied]
+		return random.choice(server_pool)
 
 	def sort_players(self, players):
 		""" sort given list of members by captains role and rating """
@@ -377,7 +390,12 @@ class Match:
 		except DiscordException:
 			pass
 
+	async def clear_server(self):
+		if (self.cfg['server'] in bot.active_servers):
+			bot.active_servers.remove(self.cfg['server'])
+
 	async def finish_match(self, ctx):
+		await self.clear_server()		
 		bot.active_matches.remove(self)
 		self.queue.last_maps += self.maps
 		self.queue.last_maps = self.queue.last_maps[-len(self.maps)*self.queue.cfg.map_cooldown:]
@@ -399,4 +417,6 @@ class Match:
 			)
 		except DiscordException:
 			pass
+
+		await self.clear_server()
 		bot.active_matches.remove(self)
