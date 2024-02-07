@@ -143,6 +143,7 @@ class CheckIn:
 			self.m.gt("Reverting {queue} to the gathering stage...").format(queue=f"**{self.m.queue.name}**")
 		)))
 
+		await self.m.clear_server()
 		bot.active_matches.remove(self.m)
 		await self.m.queue.revert(ctx, [member], [m for m in self.m.players if m != member])
 
@@ -155,6 +156,7 @@ class CheckIn:
 			except DiscordException:
 				pass
 
+		self.m.clear_server()
 		bot.active_matches.remove(self.m)
 
 		await ctx.notice("\n".join((
