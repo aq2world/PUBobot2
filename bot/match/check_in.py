@@ -2,9 +2,11 @@
 import random
 import bot
 from nextcord.errors import DiscordException
+from nextcord import File
 
 from core.utils import join_and
 from core.console import log
+from .map_stitch import map_stitch
 
 
 class CheckIn:
@@ -19,12 +21,19 @@ class CheckIn:
 		self.allow_discard = self.m.cfg['check_in_discard']
 		self.ready_players = set()
 		self.message = None
+		self.image = None
+		self.thumbnail = None
 
 		for p in (p for p in self.m.players if p.id in bot.auto_ready.keys()):
 			self.ready_players.add(p)
 
 		if len(self.m.cfg['maps']) > 1 and self.m.cfg['vote_maps']:
 			self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
+			maps_img = map_stitch(self.maps)
+			# Generate map thumbnails
+			self.image = {'name': 'img.jpg', 'file': maps_img}
+			self.thumbnail = {'name': 'thumb.jpg', 'file': maps_img}
+
 			self.map_votes = [set() for i in self.maps]
 		else:
 			self.maps = []
@@ -32,6 +41,8 @@ class CheckIn:
 
 		if self.timeout:
 			self.m.states.append(self.m.CHECK_IN)
+
+		
 
 	async def think(self, frame_time):
 		if frame_time > self.m.start_time + self.timeout:
@@ -59,7 +70,15 @@ class CheckIn:
 		not_ready = list(filter(lambda m: m not in self.ready_players, self.m.players))
 		if len(not_ready):
 			try:
-				await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready))
+				if self.image or self.thumbnail:
+					files = []
+					if self.image:
+						files.append(File(self.image['file'], filename=self.image['name']))
+					if self.thumbnail:
+						files.append(File(self.thumbnail['file'], filename=self.thumbnail['name']))
+					await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready), files=files)
+				else:
+					await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready))
 			except DiscordException:
 				pass
 		else:
