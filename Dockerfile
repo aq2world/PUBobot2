@@ -1,6 +1,7 @@
 FROM python:3.9-alpine
 ARG DEBIAN_FRONTEND=noninteractive
 
+RUN apk add ttf-dejavu
 RUN adduser -D -s /bin/bash -u 1001 pubobot
 USER pubobot
 COPY PUBobot2.py requirements.txt /home/pubobot/
