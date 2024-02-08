@@ -54,7 +54,15 @@ class CheckIn:
 
 	async def start(self, ctx):
 		text = f"!spawn message {self.m.id}"
-		self.message = await ctx.channel.send(text)
+		if self.image or self.thumbnail:
+			files = []
+			if self.image:
+				files.append(File(self.image['file'], filename=self.image['name']))
+			if self.thumbnail:
+				files.append(File(self.thumbnail['file'], filename=self.thumbnail['name']))
+			self.message = await ctx.channel.send(text, files=files)
+		else:
+			self.message = await ctx.channel.send(text)
 
 		emojis = [self.READY_EMOJI, '🔸', self.NOT_READY_EMOJI] if self.allow_discard else [self.READY_EMOJI]
 		emojis += [self.INT_EMOJIS[n] for n in range(len(self.maps))]
@@ -70,15 +78,7 @@ class CheckIn:
 		not_ready = list(filter(lambda m: m not in self.ready_players, self.m.players))
 		if len(not_ready):
 			try:
-				if self.image or self.thumbnail:
-					files = []
-					if self.image:
-						files.append(File(self.image['file'], filename=self.image['name']))
-					if self.thumbnail:
-						files.append(File(self.thumbnail['file'], filename=self.thumbnail['name']))
-					await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready), files=files)
-				else:
-					await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready))
+				await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready))
 			except DiscordException:
 				pass
 		else:
