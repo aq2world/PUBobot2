@@ -89,8 +89,8 @@ async def default_expire(ctx, duration: timedelta = None, afk: bool = None, clea
 	await ctx.success(_expire_to_reply(seconds))
 
 
-async def allow_offline(ctx):
-	if ctx.author.id in bot.allow_offline:
+async def allow_offline(ctx, force=False):
+	if not force and ctx.author.id in bot.allow_offline:
 		bot.allow_offline.remove(ctx.author.id)
 		await ctx.success(ctx.qc.gt("Your offline immunity is **off**."))
 	else:

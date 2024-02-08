@@ -5,6 +5,7 @@ from typing import Callable
 from core.client import dc
 from core.console import log
 from core.utils import get_nick, parse_duration
+from datetime import timedelta
 
 import bot
 
@@ -30,25 +31,28 @@ def message_command(*aliases: str):
 async def on_message(message):
 	if not message.content or message.content == "":
 		return
-
 	if (qc := bot.queue_channels.get(message.channel.id)) is None:
 		return
-
 	# special commands
-	if re.match(r"^\+..", message.content):
-		f, args = _commands.get('add'), [message.content[1:]]
-	elif re.match(r"^-..", message.content):
-		f, args = _commands.get('remove'), [message.content[1:]]
+	if re.match(r"^\+\+..", message.content):
+		f, args = _commands.get('certainadd'), [message.content[2:]]
 	elif message.content == "++":
 		f, args = _commands.get('add'), []
+	elif message.content == "+++":
+		f, args = _commands.get('certainadd'), []
 	elif message.content == "--":
 		f, args = _commands.get('remove'), []
+	elif message.content == "---":
+		f, args = _commands.get('remove'), []
+	elif re.match(r"^\+..", message.content):
+		f, args = _commands.get('add'), [message.content[1:]]	
+	elif re.match(r"^-..", message.content):
+		f, args = _commands.get('remove'), [message.content[1:]]	
 
 	elif message.content[0] == qc.cfg.prefix:
 		cmd_args = message.content[1:].split(' ', 1)
 		f = _commands.get(cmd_args[0])
 		args = cmd_args[1:]
-
 	else:
 		return
 
@@ -81,6 +85,11 @@ async def on_message(message):
 async def _add(ctx: MessageContext, args: str = None):
 	await bot.commands.add(ctx, queues=args)
 
+@message_command('certainadd')
+async def _certainadd(ctx: MessageContext, args: str = None):
+	await bot.commands.expire(ctx, duration=timedelta(hours=2))
+	await bot.commands.allow_offline(ctx, True)
+	await bot.commands.add(ctx, queues=args)
 
 @message_command('remove', 'l')
 async def _remove(ctx: MessageContext, args: str = None):
