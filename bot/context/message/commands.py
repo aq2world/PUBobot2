@@ -87,9 +87,9 @@ async def _add(ctx: MessageContext, args: str = None):
 
 @message_command('certainadd')
 async def _certainadd(ctx: MessageContext, args: str = None):
-	await bot.commands.expire(ctx, duration=timedelta(hours=2))
-	await bot.commands.allow_offline(ctx, True)
 	await bot.commands.add(ctx, queues=args)
+	await bot.commands.expire(ctx, duration=timedelta(hours=2))
+	await bot.commands.force_offline(ctx)
 
 @message_command('remove', 'l')
 async def _remove(ctx: MessageContext, args: str = None):
