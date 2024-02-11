@@ -16,6 +16,9 @@ class MessageContext(Context):
 	async def reply(self, content: str = None, embed: Embed = None):
 		await self.message.reply(content=content, embed=embed)
 
+	async def success_blink(self, *args, **kwargs):
+		await self.message.reply(embed=ok_embed(*args, **kwargs), delete_after=5.0)
+
 	async def notice(self, content: str = None, embed: Embed = None):
 		await (self.message.thread or self.message.channel).send(content=content, embed=embed)
 

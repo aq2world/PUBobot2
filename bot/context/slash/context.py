@@ -44,3 +44,6 @@ class SlashContext(Context):
 
 	async def success(self, *args, **kwargs):
 		await self.reply(embed=ok_embed(*args, **kwargs))
+
+	async def success_blink(self, *args, **kwargs):
+		await self.reply(embed=ok_embed(*args, **kwargs), delete_after=5.0)
