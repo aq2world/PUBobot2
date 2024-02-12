@@ -366,6 +366,9 @@ class PickupQueue:
 			await ctx.notice(promotion_msg)
 
 	async def reset(self):
+		for member in self.queue:
+			await member.send(content="THE QUEUE HAS BEEN CLEARED! Please readd if you want to play.")
+
 		self.queue = []
 		if self in bot.active_queues:
 			bot.active_queues.remove(self)
