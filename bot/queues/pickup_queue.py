@@ -170,6 +170,15 @@ class PickupQueue:
 				verify=lambda s: len(s) < 501,
 				verify_message="Server string is too long."
 			),
+			VariableTable(
+				"servers",
+				display="Servers",
+				section="Appearance",
+				description="Print a randomized server from this list on a match start.",
+				variables=[
+					Variables.StrVar("name", notnull=True)
+				]
+			),
 			Variables.RoleVar(
 				"promotion_role",
 				display="Promotion role",
@@ -334,7 +343,7 @@ class PickupQueue:
 			maps=[i['name'] for i in self.cfg.maps], vote_maps=self.cfg.vote_maps,
 			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
 			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
-			start_msg=self.cfg.start_msg, server=self.cfg.server
+			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers
 		)
 
 	async def promote(self, ctx):
@@ -357,6 +366,9 @@ class PickupQueue:
 			await ctx.notice(promotion_msg)
 
 	async def reset(self):
+		for member in self.queue:
+			await member.send(content="THE QUEUE HAS BEEN CLEARED! Please readd if you want to play.")
+
 		self.queue = []
 		if self in bot.active_queues:
 			bot.active_queues.remove(self)
