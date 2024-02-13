@@ -15,7 +15,7 @@ class Embeds:
 			# icon_url="https://cdn.discordapp.com/avatars/240843400457355264/a51a5bf3b34d94922fd60751ba1d60ab.png?size=64"
 		)
 
-	def check_in(self, not_ready):
+	def check_in(self, not_ready, image=None, thumbnail=None):
 		embed = Embed(
 			colour=Colour(0xf5d858),
 			title=self.m.gt("__**{queue}** is now on the check-in stage!__").format(
@@ -53,10 +53,11 @@ class Embeds:
 				]),
 				inline=False
 			)
-		if self.m.check_in.image:
-			embed.set_image(url="attachment://"+self.m.check_in.image['name'])
-		if self.m.check_in.thumbnail:
-			embed.set_thumbnail(url="attachment://"+self.m.check_in.thumbnail['name'])
+
+		if image:
+			embed.set_image(url="attachment://"+image)
+		if thumbnail:
+			embed.set_thumbnail(url="attachment://"+thumbnail)
 
 		embed.set_footer(**self.footer)
 		return embed
@@ -113,7 +114,7 @@ class Embeds:
 
 		return embed
 
-	def final_message(self):
+	def final_message(self, image=None, thumbnail=None):
 		show_ranks = bool(self.m.ranked and not self.m.qc.cfg.rating_nicks)
 		embed = Embed(
 			colour=Colour(0x27b75e),
@@ -186,5 +187,10 @@ class Embeds:
 					f"{p.mention}: {p.activity.url}" for p in streamers
 				]) + "\n\u200b")
 		embed.set_footer(**self.footer)
+
+		if image:
+			embed.set_image(url="attachment://"+image)
+		if thumbnail:
+			embed.set_thumbnail(url="attachment://"+thumbnail)
 
 		return embed

@@ -31,8 +31,8 @@ class CheckIn:
 			self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
 			maps_img = map_stitch(self.maps)
 			# Generate map thumbnails
-			self.image = {'name': 'img.jpg', 'file': maps_img}
-			self.thumbnail = {'name': 'thumb.jpg', 'file': maps_img}
+			self.image = maps_img
+			#self.thumbnail = maps_img
 
 			self.map_votes = [set() for i in self.maps]
 		else:
@@ -57,9 +57,9 @@ class CheckIn:
 		if self.image or self.thumbnail:
 			files = []
 			if self.image:
-				files.append(File(self.image['file'], filename=self.image['name']))
-			if self.thumbnail:
-				files.append(File(self.thumbnail['file'], filename=self.thumbnail['name']))
+				files.append(File(self.image, filename='maps-img.jpeg'))
+			#if self.thumbnail:
+			#	files.append(File(self.thumbnail, filename='maps-thumbs.jpeg'))
 			self.message = await ctx.channel.send(text, files=files)
 		else:
 			self.message = await ctx.channel.send(text)
@@ -78,7 +78,7 @@ class CheckIn:
 		not_ready = list(filter(lambda m: m not in self.ready_players, self.m.players))
 		if len(not_ready):
 			try:
-				await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready))
+				await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready, 'maps-img.jpeg'))
 			except DiscordException:
 				pass
 		else:

@@ -2,7 +2,7 @@
 from time import time
 from itertools import combinations
 import random
-from nextcord import DiscordException
+from nextcord import DiscordException, File
 
 import bot
 from core.utils import find, get, iter_to_dict, join_and, get_nick
@@ -12,6 +12,8 @@ from core.client import dc
 from .check_in import CheckIn
 from .draft import Draft
 from .embeds import Embeds
+from .map_stitch import map_stitch
+
 
 
 class Match:
@@ -385,8 +387,10 @@ class Match:
 
 	async def final_message(self, ctx):
 		#  Embed message with teams
+		maps_img = map_stitch(self.maps)
+		file  = File(maps_img, filename='voted-maps.jpg')
 		try:
-			await ctx.notice(embed=self.embeds.final_message())
+			await ctx.notice(embed=self.embeds.final_message('voted-maps.jpg'), file=file)
 		except DiscordException:
 			pass
 
