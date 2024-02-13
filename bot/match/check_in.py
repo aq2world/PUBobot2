@@ -156,7 +156,7 @@ class CheckIn:
 			except DiscordException:
 				pass
 
-		self.m.clear_server()
+		await self.m.clear_server()
 		bot.active_matches.remove(self.m)
 
 		await ctx.notice("\n".join((
