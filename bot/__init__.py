@@ -23,10 +23,10 @@ bot_ready = False
 queue_channels = dict()  # {channel.id: QueueChannel()}
 active_queues = []
 active_matches = []
+active_servers = []
 waiting_reactions = dict()  # {message.id: function}
 allow_offline = []  # [user_id]
 auto_ready = dict()  # {user.id: timestamp}
-
 
 def background_context(coro):
 	async def wrapper(qc, *args, **kwargs):

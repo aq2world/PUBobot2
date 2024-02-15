@@ -33,8 +33,7 @@ def ctrl_c(sig, frame):
 	bot.save_state()
 	console.terminate()
 	signal.signal(signal.SIGINT, original_SIGINT_handler)
-
-
+	
 signal.signal(signal.SIGINT, ctrl_c)
 
 
@@ -92,6 +91,7 @@ async def think():
 	log.close()
 	print("Exit now.")
 	loop.stop()
+	os.system('reset -I')
 
 # Login to discord
 DC_BOT_TOKEN = os.environ.get('DC_BOT_TOKEN') if os.environ.get('DC_BOT_TOKEN') else config.cfg.DC_BOT_TOKEN

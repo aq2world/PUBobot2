@@ -113,9 +113,9 @@ class SystemContext(Context):
 	async def reply(self, content: str = None, embed: Embed = None):
 		await self.messagable.send(content=content, embed=embed)
 
-	async def notice(self, content: str = None, embed: Embed = None):
+	async def notice(self, content: str = None, embed: Embed = None, file = None):
 		""" Send message in chat without replying if possible """
-		await self.messagable.send(content=content, embed=embed)
+		await self.messagable.send(content=content, embed=embed, file=file)
 
 	async def reply_dm(self, content: str = None, embed: Embed = None):
 		await self.messagable.send(content=content, embed=embed)

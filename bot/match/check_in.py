@@ -2,9 +2,11 @@
 import random
 import bot
 from nextcord.errors import DiscordException
+from nextcord import File
 
 from core.utils import join_and
 from core.console import log
+from .map_stitch import map_stitch
 
 
 class CheckIn:
@@ -19,12 +21,19 @@ class CheckIn:
 		self.allow_discard = self.m.cfg['check_in_discard']
 		self.ready_players = set()
 		self.message = None
+		self.image = None
+		self.thumbnail = None
 
 		for p in (p for p in self.m.players if p.id in bot.auto_ready.keys()):
 			self.ready_players.add(p)
 
 		if len(self.m.cfg['maps']) > 1 and self.m.cfg['vote_maps']:
 			self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
+			maps_img = map_stitch(self.maps)
+			# Generate map thumbnails
+			self.image = maps_img
+			#self.thumbnail = maps_img
+
 			self.map_votes = [set() for i in self.maps]
 		else:
 			self.maps = []
@@ -32,6 +41,8 @@ class CheckIn:
 
 		if self.timeout:
 			self.m.states.append(self.m.CHECK_IN)
+
+		
 
 	async def think(self, frame_time):
 		if frame_time > self.m.start_time + self.timeout:
@@ -43,7 +54,15 @@ class CheckIn:
 
 	async def start(self, ctx):
 		text = f"!spawn message {self.m.id}"
-		self.message = await ctx.channel.send(text)
+		if self.image or self.thumbnail:
+			files = []
+			if self.image:
+				files.append(File(self.image, filename='maps-img.jpeg'))
+			#if self.thumbnail:
+			#	files.append(File(self.thumbnail, filename='maps-thumbs.jpeg'))
+			self.message = await ctx.channel.send(text, files=files)
+		else:
+			self.message = await ctx.channel.send(text)
 
 		emojis = [self.READY_EMOJI, '🔸', self.NOT_READY_EMOJI] if self.allow_discard else [self.READY_EMOJI]
 		emojis += [self.INT_EMOJIS[n] for n in range(len(self.maps))]
@@ -59,7 +78,7 @@ class CheckIn:
 		not_ready = list(filter(lambda m: m not in self.ready_players, self.m.players))
 		if len(not_ready):
 			try:
-				await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready))
+				await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready, 'maps-img.jpeg'))
 			except DiscordException:
 				pass
 		else:
@@ -124,6 +143,7 @@ class CheckIn:
 			self.m.gt("Reverting {queue} to the gathering stage...").format(queue=f"**{self.m.queue.name}**")
 		)))
 
+		await self.m.clear_server()
 		bot.active_matches.remove(self.m)
 		await self.m.queue.revert(ctx, [member], [m for m in self.m.players if m != member])
 
@@ -136,6 +156,7 @@ class CheckIn:
 			except DiscordException:
 				pass
 
+		await self.m.clear_server()
 		bot.active_matches.remove(self.m)
 
 		await ctx.notice("\n".join((

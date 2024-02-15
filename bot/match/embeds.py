@@ -1,6 +1,7 @@
 from nextcord import Embed, Colour, Streaming
 from core.client import dc
 from core.utils import get_nick, join_and
+import urllib.parse
 
 
 class Embeds:
@@ -11,11 +12,11 @@ class Embeds:
 		# self.
 		self.footer = dict(
 			text=f"Match id: {self.m.id}",
-			icon_url=dc.user.avatar.with_size(32)
+			icon_url=dc.user.avatar.with_size(32) if dc.user.avatar else None
 			# icon_url="https://cdn.discordapp.com/avatars/240843400457355264/a51a5bf3b34d94922fd60751ba1d60ab.png?size=64"
 		)
 
-	def check_in(self, not_ready):
+	def check_in(self, not_ready, image=None, thumbnail=None):
 		embed = Embed(
 			colour=Colour(0xf5d858),
 			title=self.m.gt("__**{queue}** is now on the check-in stage!__").format(
@@ -53,8 +54,13 @@ class Embeds:
 				]),
 				inline=False
 			)
-		embed.set_footer(**self.footer)
 
+		if image:
+			embed.set_image(url="attachment://"+image)
+		if thumbnail:
+			embed.set_thumbnail(url="attachment://"+thumbnail)
+
+		embed.set_footer(**self.footer)
 		return embed
 
 	def draft(self):
@@ -109,7 +115,7 @@ class Embeds:
 
 		return embed
 
-	def final_message(self):
+	def final_message(self, image=None, thumbnail=None):
 		show_ranks = bool(self.m.ranked and not self.m.qc.cfg.rating_nicks)
 		embed = Embed(
 			colour=Colour(0x27b75e),
@@ -171,7 +177,11 @@ class Embeds:
 				inline=True
 			)
 		if self.m.cfg['server']:
-			embed.add_field(name=self.m.qc.gt("Server"), value=f"`{self.m.cfg['server']}`", inline=True)
+			redir_url="http://www.aq2world.com/redir?server=$1&port=$2"
+			server = self.m.cfg['server'].split(':')
+			url = redir_url.replace('$1', server[0]).replace('$2', server[1])
+			embed.add_field(name=self.m.qc.gt("Server"), 
+				value=f"[{self.m.cfg['server']}]({url})", inline=True)
 
 		if self.m.cfg['start_msg']:
 			embed.add_field(name="—", value=self.m.cfg['start_msg'] + "\n\u200b", inline=False)
@@ -182,5 +192,10 @@ class Embeds:
 					f"{p.mention}: {p.activity.url}" for p in streamers
 				]) + "\n\u200b")
 		embed.set_footer(**self.footer)
+
+		if image:
+			embed.set_image(url="attachment://"+image)
+		if thumbnail:
+			embed.set_thumbnail(url="attachment://"+thumbnail)
 
 		return embed

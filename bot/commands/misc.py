@@ -1,4 +1,4 @@
-__all__ = ['auto_ready', 'expire', 'default_expire', 'allow_offline', 'switch_dms', 'cointoss', 'show_help', 'set_nick']
+__all__ = ['auto_ready', 'expire', 'default_expire', 'allow_offline', 'force_offline', 'switch_dms', 'cointoss', 'show_help', 'set_nick']
 
 from time import time
 from datetime import timedelta
@@ -51,7 +51,7 @@ async def expire(ctx, duration: timedelta = None):
 		)))
 
 	bot.expire.set(ctx.qc, ctx.author, duration.total_seconds())
-	await ctx.success(ctx.qc.gt("Set your expire time to {duration}.").format(
+	await ctx.success_blink(ctx.qc.gt("Set your expire time to {duration}.").format(
 		duration=duration.__str__()
 	))
 
@@ -86,16 +86,21 @@ async def default_expire(ctx, duration: timedelta = None, afk: bool = None, clea
 		await db.insert('players', {'user_id': ctx.author.id, 'expire': seconds})
 	except db.errors.IntegrityError:
 		await db.update('players', {'expire': seconds}, keys={'user_id': ctx.author.id})
-	await ctx.success(_expire_to_reply(seconds))
+	await ctx.success_blink(_expire_to_reply(seconds))
 
 
 async def allow_offline(ctx):
 	if ctx.author.id in bot.allow_offline:
 		bot.allow_offline.remove(ctx.author.id)
-		await ctx.success(ctx.qc.gt("Your offline immunity is **off**."))
+		await ctx.success_blink(ctx.qc.gt("Your offline immunity is **off**."))
 	else:
 		bot.allow_offline.append(ctx.author.id)
-		await ctx.success(ctx.qc.gt("Your offline immunity is **on** until the next match."))
+		await ctx.success_blink(ctx.qc.gt("Your offline immunity is **on** until the next match."))
+
+async def force_offline(ctx):
+	if ctx.author.id not in bot.allow_offline:
+		bot.allow_offline.append(ctx.author.id)
+	await ctx.success_blink(ctx.qc.gt("Your offline immunity is **on** until the next match."))
 
 
 async def switch_dms(ctx):
@@ -108,9 +113,9 @@ async def switch_dms(ctx):
 		await db.insert('players', {'allow_dm': allow_dm, 'user_id': ctx.author.id})
 
 	if allow_dm:
-		await ctx.success(ctx.qc.gt("Your DM notifications is now turned on."))
+		await ctx.success_blink(ctx.qc.gt("Your DM notifications is now turned on."))
 	else:
-		await ctx.success(ctx.qc.gt("Your DM notifications is now turned off."))
+		await ctx.success_blink(ctx.qc.gt("Your DM notifications is now turned off."))
 
 
 async def cointoss(ctx, side: str = None):
