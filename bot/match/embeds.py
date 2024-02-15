@@ -1,6 +1,7 @@
 from nextcord import Embed, Colour, Streaming
 from core.client import dc
 from core.utils import get_nick, join_and
+import urllib.parse
 
 
 class Embeds:
@@ -176,7 +177,11 @@ class Embeds:
 				inline=True
 			)
 		if self.m.cfg['server']:
-			embed.add_field(name=self.m.qc.gt("Server"), value=f"`{self.m.cfg['server']}`", inline=True)
+			redir_url="http://www.aq2world.com/redir?server=$1&port=$2"
+			server = self.m.cfg['server'].split(':')
+			url = redir_url.replace('$1', server[0]).replace('$2', server[1])
+			embed.add_field(name=self.m.qc.gt("Server"), 
+				value=f"[{self.m.cfg['server']}]({url})", inline=True)
 
 		if self.m.cfg['start_msg']:
 			embed.add_field(name="—", value=self.m.cfg['start_msg'] + "\n\u200b", inline=False)
