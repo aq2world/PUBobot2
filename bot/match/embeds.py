@@ -17,17 +17,39 @@ class Embeds:
 		)
 
 	def check_in(self, not_ready, image=None, thumbnail=None):
+		show_ranks = bool(self.m.ranked and not self.m.qc.cfg.rating_nicks)
+		show_teams = bool(self.m.cfg['show_teams_when_voting'])
 		embed = Embed(
 			colour=Colour(0xf5d858),
 			title=self.m.gt("__**{queue}** is now on the check-in stage!__").format(
 				queue=self.m.queue.name[0].upper()+self.m.queue.name[1:]
 			)
 		)
+
 		embed.add_field(
 			name=self.m.gt("Waiting on:"),
 			value="\n".join((f" \u200b <@{p.id}>" for p in not_ready)),
 			inline=False
 		)
+		
+		if show_teams and len(self.m.teams[0]):  # team vs team
+			teams_names = [
+				f"{t.emoji} \u200b **{t.name}**" +
+				(f" \u200b `〈{sum((self.m.ratings[p.id] for p in t))//(len(t) or 1)}〉`" if self.m.ranked else "")
+				for t in self.m.teams[:2]
+			]
+			team_players = [
+				" \u200b " +
+				" \u200b ".join([
+					(f"`{self.m.rank_str(p)}`" if show_ranks else "") + f"<@{p.id}>"
+					for p in t
+				])
+				for t in self.m.teams[:2]
+			]
+			team_players[1] += "\n\u200b"  # Extra empty line
+			embed.add_field(name=teams_names[0], value=team_players[0], inline=False)
+			embed.add_field(name=teams_names[1], value=team_players[1], inline=False)
+
 		if not len(self.m.check_in.maps):
 			embed.add_field(
 				name="—",
@@ -70,7 +92,6 @@ class Embeds:
 				queue=self.m.queue.name[0].upper()+self.m.queue.name[1:]
 			)
 		)
-
 		teams_names = [
 			f"{t.emoji} \u200b **{t.name}**" +
 			(f" \u200b `〈{sum((self.m.ratings[p.id] for p in t))//(len(t) or 1)}〉`" if self.m.ranked else "")
