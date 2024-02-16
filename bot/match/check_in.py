@@ -43,7 +43,6 @@ class CheckIn:
 			self.m.states.append(self.m.CHECK_IN)
 
 		
-
 	async def think(self, frame_time):
 		if frame_time > self.m.start_time + self.timeout:
 			ctx = bot.SystemContext(self.m.qc)

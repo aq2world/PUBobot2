@@ -32,7 +32,8 @@ class Match:
 		teams=None, team_names=['Alpha', 'Beta'], team_emojis=None, ranked=False,
 		team_size=1, pick_captains="no captains", captains_role_id=None, pick_teams="draft",
 		pick_order=None, maps=[], vote_maps=0, map_count=0, check_in_timeout=0,
-		check_in_discard=True, match_lifetime=3*60*60, start_msg=None, server=None, servers=None, show_streamers=True
+		check_in_discard=True, match_lifetime=3*60*60, start_msg=None, server=None, servers=None, show_streamers=True,
+		show_teams_when_voting=None
 	)
 
 	class Team(list):
