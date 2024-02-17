@@ -171,9 +171,21 @@ async def leaderboard(ctx, page: int = 1):
 
 	data = (await ctx.qc.get_lb())[page * 10:(page + 1) * 10]
 	if len(data):
+		for player in data:
+			# Get the timestamp of the last rating change for this player
+			last_change = await db.select_one(
+				['at'], "qc_rating_history", where=dict(user_id=player['user_id'], channel_id=ctx.qc.rating.channel_id),
+				order_by="id", limit=1
+			)
+			# Calculate the time since the last rating change
+			if last_change:
+				player['ago'] = seconds_to_str(int(time() - last_change['at']))
+			else:
+				player['ago'] = "N/A"
+
 		await ctx.reply(
 			discord_table(
-				["№", "Rating〈Ξ〉", "Nickname", "Matches", "W/L/D"],
+				["№", "Rating〈Ξ〉", "Nickname", "Matches", "W/L/D", "Last activity"],
 				[[
 					(page * 10) + (n + 1),
 					str(data[n]['rating']) + ctx.qc.rating_rank(data[n]['rating'])['rank'],
@@ -184,7 +196,8 @@ async def leaderboard(ctx, page: int = 1):
 						data[n]['losses'],
 						data[n]['draws'],
 						int(data[n]['wins'] * 100 / ((data[n]['wins'] + data[n]['losses']) or 1))
-					)
+					),
+					data[n]['ago']
 				] for n in range(len(data))]
 			)
 		)
