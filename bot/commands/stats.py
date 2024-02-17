@@ -171,6 +171,7 @@ async def leaderboard(ctx, page: int = 1):
 
 	data = (await ctx.qc.get_lb())[page * 10:(page + 1) * 10]
 	if len(data):
+		active_players = []  # List to store active players
 		for player in data:
 			# Get the timestamp of the last rating change for this player
 			last_change = await db.select_one(
@@ -180,25 +181,31 @@ async def leaderboard(ctx, page: int = 1):
 			# Calculate the time since the last rating change
 			if last_change:
 				player['ago'] = seconds_to_str(int(time() - last_change['at']))
+				# Convert 'ago' to days
+				ago_days = (time() - last_change['at']) / (60 * 60 * 24)
+				# If 'ago' is more than 30 days, continue to the next player
+				if ago_days <= 30:
+					active_players.append(player)
 			else:
 				player['ago'] = "N/A"
+				active_players.append(player)  # Add player to active_players if there's no last_change data
 
 		await ctx.reply(
 			discord_table(
 				["№", "Rating〈Ξ〉", "Nickname", "Matches", "W/L/D", "Last activity"],
 				[[
 					(page * 10) + (n + 1),
-					str(data[n]['rating']) + ctx.qc.rating_rank(data[n]['rating'])['rank'],
-					data[n]['nick'].strip(),
-					int(data[n]['wins'] + data[n]['losses'] + data[n]['draws']),
+					str(active_players[n]['rating']) + ctx.qc.rating_rank(active_players[n]['rating'])['rank'],
+					active_players[n]['nick'].strip(),
+					int(active_players[n]['wins'] + active_players[n]['losses'] + active_players[n]['draws']),
 					"{0}/{1}/{2} ({3}%)".format(
-						data[n]['wins'],
-						data[n]['losses'],
-						data[n]['draws'],
-						int(data[n]['wins'] * 100 / ((data[n]['wins'] + data[n]['losses']) or 1))
+						active_players[n]['wins'],
+						active_players[n]['losses'],
+						active_players[n]['draws'],
+						int(active_players[n]['wins'] * 100 / ((active_players[n]['wins'] + active_players[n]['losses']) or 1))
 					),
-					data[n]['ago']
-				] for n in range(len(data))]
+					active_players[n]['ago']
+				] for n in range(len(active_players)) if 'ago' in active_players[n]]
 			)
 		)
 	else:
