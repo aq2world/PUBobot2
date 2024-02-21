@@ -7,9 +7,7 @@ from core.client import dc
 
 import bot
 
-
 class PickupQueue:
-
 	cfg_factory = CfgFactory(
 		table=FactoryTable(name="pq_configs", p_key="pq_id", f_key="channel_id"),
 		name="pq_config",
@@ -174,7 +172,7 @@ class PickupQueue:
 				"servers",
 				display="Servers",
 				section="Appearance",
-				description="Print a randomized server from this list on a match start.",
+				description="List of servers that will be randomly displayed on a match start.",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
@@ -225,6 +223,14 @@ class PickupQueue:
 				section="General",
 				description="Set a custom match life time before it times out then ranked is enabled. Default: 3 hours."
 			),
+			Variables.TextVar(
+				"map_default_pool",
+				display="Default Map Pool",
+				section="Maps",
+				default='default',
+				notnull=True,
+				description="This pool will be used by default for the queue."
+			),
 			Variables.IntVar(
 				"map_count",
 				display="Map count",
@@ -246,6 +252,16 @@ class PickupQueue:
 					"Prefer to not choose last played map(s) for the next specified matches amount.",
 					"This affects map voting pools as well. Set 0 to disable."
 				])
+			),
+			VariableTable(
+				"map_pools",
+				display="Map pools (RAW)",
+				section="Maps",
+				description="List of map pools with maps.",
+				variables=[
+					Variables.StrVar("pool_name", notnull=True),
+					VariableTable("maps")
+				]
 			),
 			Variables.IntVar(
 				"vote_maps",
