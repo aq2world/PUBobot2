@@ -94,7 +94,7 @@ class CheckIn:
 
 	async def refresh(self, ctx):
 		not_ready = list(filter(lambda m: m not in self.ready_players, self.m.players))
-		server_voted = not self.m.cfg['vote_server'] or sum(1 for vote in self.server_votes if vote) > 1
+		server_voted = not self.m.cfg['vote_server'] or sum(1 for vote in self.server_votes if vote) > 0
 
 		if len(not_ready) or not server_voted:
 			try:
@@ -120,7 +120,7 @@ class CheckIn:
 
 		if self.m.cfg['vote_server']: 
 			# Check if votes higher then zero, otherwise randomize
-			if len(self.server_votes) > 1:
+			if len(self.server_votes) > 0:
 				order = list(range(len(self.available_servers)))
 				random.shuffle(order)
 				order.sort(key=lambda n: len(self.server_votes[n]), reverse=True)
@@ -170,7 +170,7 @@ class CheckIn:
 			if idx <= len(self.maps):
 				if remove:
 					self.map_votes[idx].discard(user_id)
-					self.ready_players.discard(users[user_id])
+					#self.ready_players.discard(users[user_id])
 				else:
 					self.map_votes[idx].add(user_id)
 					self.ready_players.add(users[user_id])
