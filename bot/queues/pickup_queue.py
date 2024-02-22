@@ -174,10 +174,18 @@ class PickupQueue:
 				"servers",
 				display="Servers",
 				section="Appearance",
-				description="Print a randomized server from this list on a match start.",
+				description="Multiple server definition for server randomization or server voting. Check also vote_server setting.",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
+			),
+			Variables.BoolVar(
+				"vote_server",
+				display="Enable server voting",
+				section="Appearance",
+				default=0,
+				notnull=True,
+				description="Enable server voting from the servers variable. If vote_server is disabled, servers will be randomized."
 			),
 			Variables.RoleVar(
 				"promotion_role",
@@ -343,7 +351,8 @@ class PickupQueue:
 			maps=[i['name'] for i in self.cfg.maps], vote_maps=self.cfg.vote_maps,
 			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
 			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
-			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers
+			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers,
+			vote_server=self.cfg.vote_server
 		)
 
 	async def promote(self, ctx):

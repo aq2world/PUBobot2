@@ -15,7 +15,7 @@ class Embeds:
 			# icon_url="https://cdn.discordapp.com/avatars/240843400457355264/a51a5bf3b34d94922fd60751ba1d60ab.png?size=64"
 		)
 
-	def check_in(self, not_ready, image=None, thumbnail=None):
+	def check_in(self, not_ready, vote_server=False, image=None, thumbnail=None):
 		embed = Embed(
 			colour=Colour(0xf5d858),
 			title=self.m.gt("__**{queue}** is now on the check-in stage!__").format(
@@ -45,13 +45,27 @@ class Embeds:
 					),
 					self.m.gt("React with {not_ready_emoji} to **abort**!").format(
 						not_ready_emoji=self.m.check_in.NOT_READY_EMOJI
-					) + "\n\u200b\nMaps:",
+					) + 
+					"\n\u200b\nMaps:",
 					"\n".join([
 						f" \u200b \u200b {self.m.check_in.INT_EMOJIS[i]} \u200b {self.m.check_in.maps[i]}"
 						for i in range(len(self.m.check_in.maps))
 					])
 				]),
 				inline=False
+			)
+
+		if vote_server:
+			embed.add_field(
+					name="-",
+					value="\n".join([
+						"\n\u200bServers:",
+						"\n".join([
+							f" \u200b \u200b {self.m.check_in.ABC_EMOJIS[i]} \u200b {self.m.check_in.available_servers[i]}"
+							for i in range(len(self.m.check_in.available_servers))
+						])
+					]),
+					inline=False
 			)
 
 		if image:
