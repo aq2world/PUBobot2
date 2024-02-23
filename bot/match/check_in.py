@@ -14,7 +14,7 @@ class CheckIn:
 	READY_EMOJI = "☑"
 	NOT_READY_EMOJI = "⛔"
 	INT_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6⃣", "7⃣", "8⃣", "9⃣"]
-	ABC_EMOJIS = ["🇦", "🇧", "🇨", "🇩", "🇪", "🇫", "🇬", "🇭", "🇮", "🇯"]
+	ABC_EMOJIS = ["🔵", "🟢", "🟠", "🟣", "🔴", "🟡", "🟤"]
 
 	def __init__(self, match, timeout):
 		self.m = match
@@ -70,10 +70,10 @@ class CheckIn:
 		emojis = [self.READY_EMOJI, '🔸', self.NOT_READY_EMOJI] if self.allow_discard else [self.READY_EMOJI]
 		
 		if (self.m.cfg['vote_server']):
-			emojis += ['💻']
+			#emojis += ['💻']
 			emojis += [self.ABC_EMOJIS[n] for n in range(len(self.available_servers))]
 		
-		emojis += ['🚩'] if len(self.maps) > 0 else []
+		#emojis += ['🚩'] if len(self.maps) > 0 else []
 		emojis += [self.INT_EMOJIS[n] for n in range(len(self.maps))]
 		try:
 			for emoji in emojis:
