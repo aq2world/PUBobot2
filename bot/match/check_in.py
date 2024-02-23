@@ -73,7 +73,7 @@ class CheckIn:
 			emojis += ['💻']
 			emojis += [self.ABC_EMOJIS[n] for n in range(len(self.available_servers))]
 		
-		emojis += ['🚩'] if len(self.maps) > 0
+		emojis += ['🚩'] if len(self.maps) > 0 else []
 		emojis += [self.INT_EMOJIS[n] for n in range(len(self.maps))]
 		try:
 			for emoji in emojis:
