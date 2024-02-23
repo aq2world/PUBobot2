@@ -47,7 +47,6 @@ async def add(ctx, queues: str = None):
 		await ctx.qc.update_expire(ctx.author)
 		if phrase:
 			await ctx.reply(phrase)
-			return True
 		await ctx.notice(ctx.qc.topic)
 		return True
 	else:  # have to give some response for slash commands

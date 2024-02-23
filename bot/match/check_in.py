@@ -16,7 +16,6 @@ class CheckIn:
 	INT_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6⃣", "7⃣", "8⃣", "9⃣"]
 	ABC_EMOJIS = ["🇦", "🇧", "🇨", "🇩", "🇪", "🇫", "🇬", "🇭", "🇮", "🇯"]
 
-
 	def __init__(self, match, timeout):
 		self.m = match
 		self.timeout = timeout
@@ -69,6 +68,12 @@ class CheckIn:
 			self.message = await ctx.channel.send(text)
 
 		emojis = [self.READY_EMOJI, '🔸', self.NOT_READY_EMOJI] if self.allow_discard else [self.READY_EMOJI]
+		
+		if (self.m.cfg['vote_server']):
+			emojis += ['💻']
+			emojis += [self.ABC_EMOJIS[n] for n in range(len(self.available_servers))]
+		
+		emojis += ['🚩'] if len(self.maps) > 0
 		emojis += [self.INT_EMOJIS[n] for n in range(len(self.maps))]
 		try:
 			for emoji in emojis:
@@ -78,6 +83,7 @@ class CheckIn:
 		bot.waiting_reactions[self.message.id] = self.process_reaction
 
 		# Map voting emojis
+		'''
 		if (self.m.cfg['vote_server']):			
 			# Server voting and emojis
 			text = f"Vote server ↓"
@@ -90,6 +96,7 @@ class CheckIn:
 			except DiscordException:
 				pass
 			bot.waiting_reactions[self.srv_vote_message.id] = self.process_srv_reaction
+		'''
 		await self.refresh(ctx)
 
 	async def refresh(self, ctx):
@@ -144,7 +151,7 @@ class CheckIn:
 			bot.auto_ready.pop(p.id)
 
 		await self.m.next_state(ctx)
-
+	'''
 	async def process_srv_reaction(self, reaction, user_id, remove=False):
 		user_ids = [p.id for p in self.m.players]
 		if user_id not in user_ids:
@@ -157,7 +164,7 @@ class CheckIn:
 			else:
 				self.server_votes[idx].add(user_id)
 			await self.refresh(bot.SystemContext(self.m.queue.qc))
-
+	'''
 	async def process_reaction(self, reaction, user_id, remove=False):
 		user_ids = [p.id for p in self.m.players]
 		users = {p.id:p for p in self.m.players}
@@ -175,6 +182,13 @@ class CheckIn:
 					self.map_votes[idx].add(user_id)
 					self.ready_players.add(users[user_id])
 				await self.refresh(bot.SystemContext(self.m.queue.qc))
+		elif str(reaction) in self.ABC_EMOJIS:
+			idx = self.ABC_EMOJIS.index(str(reaction))
+			if remove:
+				self.server_votes[idx].discard(user_id)
+			else:
+				self.server_votes[idx].add(user_id)
+			await self.refresh(bot.SystemContext(self.m.queue.qc))
 
 		elif str(reaction) == self.READY_EMOJI:
 			if remove:

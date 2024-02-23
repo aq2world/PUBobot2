@@ -29,7 +29,7 @@ class Embeds:
 
 		embed.add_field(
 			name=self.m.gt("Waiting on:"),
-			value="\n".join((f" \u200b <@{p.id}>" for p in not_ready)),
+			value="".join((f" \u200b <@{p.id}>" for p in not_ready)),
 			inline=False
 		)
 		
@@ -50,6 +50,26 @@ class Embeds:
 			team_players[1] += "\n\u200b"  # Extra empty line
 			embed.add_field(name=teams_names[0], value=team_players[0], inline=False)
 			embed.add_field(name=teams_names[1], value=team_players[1], inline=False)
+
+		if vote_server:
+			embed.add_field(
+				name="—",
+				value=self.m.gt(
+					"Please vote for the server. At least one server vote is needed for the game to begin."
+				)+ "\n\u200b",
+				inline=False
+			)
+			embed.add_field(
+					name="",
+					value="\n".join([
+						"\n\u200bServers:",
+						"\n".join([
+							f" \u200b \u200b {self.m.check_in.ABC_EMOJIS[i]} \u200b {self.m.check_in.available_servers[i]}"
+							for i in range(len(self.m.check_in.available_servers))
+						])
+					]),
+					inline=False
+			)
 
 		if not len(self.m.check_in.maps):
 			embed.add_field(
@@ -77,19 +97,6 @@ class Embeds:
 					])
 				]),
 				inline=False
-			)
-
-		if vote_server:
-			embed.add_field(
-					name="-",
-					value="\n".join([
-						"\n\u200bServers:",
-						"\n".join([
-							f" \u200b \u200b {self.m.check_in.ABC_EMOJIS[i]} \u200b {self.m.check_in.available_servers[i]}"
-							for i in range(len(self.m.check_in.available_servers))
-						])
-					]),
-					inline=False
 			)
 
 		if image:
