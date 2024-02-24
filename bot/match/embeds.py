@@ -16,7 +16,8 @@ class Embeds:
 			# icon_url="https://cdn.discordapp.com/avatars/240843400457355264/a51a5bf3b34d94922fd60751ba1d60ab.png?size=64"
 		)
 
-	def check_in(self, not_ready, image=None, thumbnail=None):
+
+	def check_in(self, not_ready, vote_server=False, image=None, thumbnail=None):
 		show_ranks = bool(self.m.ranked and not self.m.qc.cfg.rating_nicks)
 		show_teams = bool(self.m.cfg['show_teams_when_voting'])
 		embed = Embed(
@@ -28,7 +29,7 @@ class Embeds:
 
 		embed.add_field(
 			name=self.m.gt("Waiting on:"),
-			value="\n".join((f" \u200b <@{p.id}>" for p in not_ready)),
+			value="".join((f" \u200b <@{p.id}>" for p in not_ready)),
 			inline=False
 		)
 		
@@ -50,6 +51,26 @@ class Embeds:
 			embed.add_field(name=teams_names[0], value=team_players[0], inline=False)
 			embed.add_field(name=teams_names[1], value=team_players[1], inline=False)
 
+		if vote_server:
+			embed.add_field(
+				name="—",
+				value=self.m.gt(
+					"Please vote for the server. At least one server vote is needed for the game to begin."
+				)+ "\n\u200b",
+				inline=False
+			)
+			embed.add_field(
+					name="",
+					value="\n".join([
+						"\n\u200bServers:",
+						"\n".join([
+							f" \u200b \u200b {self.m.check_in.ABC_EMOJIS[i]} \u200b {self.m.check_in.available_servers[i]}"
+							for i in range(len(self.m.check_in.available_servers))
+						])
+					]),
+					inline=False
+			)
+
 		if not len(self.m.check_in.maps):
 			embed.add_field(
 				name="—",
@@ -68,7 +89,8 @@ class Embeds:
 					),
 					self.m.gt("React with {not_ready_emoji} to **abort**!").format(
 						not_ready_emoji=self.m.check_in.NOT_READY_EMOJI
-					) + "\n\u200b\nMaps:",
+					) + 
+					"\n\u200b\nMaps:",
 					"\n".join([
 						f" \u200b \u200b {self.m.check_in.INT_EMOJIS[i]} \u200b {self.m.check_in.maps[i]}"
 						for i in range(len(self.m.check_in.maps))

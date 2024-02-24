@@ -48,6 +48,7 @@ async def add(ctx, queues: str = None):
 		if phrase:
 			await ctx.reply(phrase)
 		await ctx.notice(ctx.qc.topic)
+		return True
 	else:  # have to give some response for slash commands
 		await ctx.ignore(content=ctx.qc.topic, embed=error_embed(ctx.qc.gt("Action had no effect."), title=None))
 

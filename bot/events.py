@@ -46,16 +46,36 @@ async def on_message(message):
 
 
 @dc.event
-async def on_reaction_add(reaction, user):
+async def on_raw_reaction_add(payload):
+	user_id = payload.user_id
+	message_id = payload.message_id
+	emoji = payload.emoji
+	
+	if user_id != dc.user.id and message_id in bot.waiting_reactions.keys():
+		await bot.waiting_reactions[message_id](emoji, user_id, remove=False)
+
+
+@dc.event
+async def on_raw_reaction_remove(payload): 
+	user_id = payload.user_id
+	message_id = payload.message_id
+	emoji = payload.emoji
+
+	if user_id != dc.user.id and message_id in bot.waiting_reactions.keys():
+		await bot.waiting_reactions[message_id](emoji, user_id, remove=True)
+'''
+
+@dc.event
+async def on_reaction_raw_add(reaction, user):
 	if user.id != dc.user.id and reaction.message.id in bot.waiting_reactions.keys():
 		await bot.waiting_reactions[reaction.message.id](reaction, user)
 
 
 @dc.event
-async def on_reaction_remove(reaction, user):  # FIXME: this event does not get triggered for some reason
+async def on_reaction_raw_remove(reaction, user):  # FIXME: this event does not get triggered for some reason
 	if user.id != dc.user.id and reaction.message.channel.id in bot.waiting_reactions.keys():
 		await bot.waiting_reactions[reaction.message.id](reaction, user, remove=True)
-
+'''
 
 @dc.event
 async def on_ready():
