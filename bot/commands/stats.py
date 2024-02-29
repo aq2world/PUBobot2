@@ -180,15 +180,18 @@ async def leaderboard(ctx, page: int = 1):
 			)
 			# Calculate the time since the last rating change
 			if last_change:
-				player['ago'] = seconds_to_str(int(time() - last_change['at']))
-				# Convert 'ago' to days
-				ago_days = (time() - last_change['at']) / (60 * 60 * 24)
-				# If 'ago' is more than 30 days, continue to the next player
+				time_diff = int(time() - last_change['at'])
+				player['ago'] = seconds_to_str(time_diff)
+				ago_days = time_diff / (60 * 60 * 24)
+				if ago_days < 1:
+					player['ago'] = "0 days"
+				else:
+					player['ago'] = f"{int(ago_days)} days"
 				if ago_days <= 30:
 					active_players.append(player)
 			else:
 				player['ago'] = "N/A"
-				active_players.append(player)  # Add player to active_players if there's no last_change data
+				active_players.append(player)
 
 		await ctx.reply(
 			discord_table(
