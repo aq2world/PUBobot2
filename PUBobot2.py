@@ -60,7 +60,7 @@ async def think():
 	for task in dc.events['on_init']:
 		await task()
 
-	# Loop runs roughly every 1 second
+	# Loop runs roughly every 0.1 second for console parsing and task executions
 	while console.alive:
 		frame_time = time.time()
 		await run_console()
@@ -69,7 +69,7 @@ async def think():
 				await task(frame_time)
 			except Exception as e:
 				log.error('Error running background task from {}: {}\n{}'.format(task.__module__, str(e), traceback.format_exc()))
-		await asleep(1)
+		await asleep(0.1)
 
 	# Exit signal received
 	for task in dc.events['on_exit']:

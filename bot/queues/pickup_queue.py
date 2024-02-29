@@ -140,6 +140,14 @@ class PickupQueue:
 				verify_message="Team emojis must be exactly two emojis separated by space.",
 				description="Team emojis separated by space."
 			),
+			Variables.BoolVar(
+				"show_teams_when_voting",
+				display="Show teams while voting maps",
+				section="Teams",
+				default=1,
+				notnull=True,
+				description="Show teams when voting maps on check-in."
+			),
 			Variables.TextVar(
 				"start_msg",
 				display="Start message",
@@ -176,6 +184,14 @@ class PickupQueue:
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
+			),
+			Variables.BoolVar(
+				"vote_server",
+				display="Enable server voting",
+				section="Appearance",
+				default=0,
+				notnull=True,
+				description="Enable server voting from the servers variable. If vote_server is disabled, servers will be randomized."
 			),
 			Variables.RoleVar(
 				"promotion_role",
@@ -370,7 +386,8 @@ class PickupQueue:
 			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
 			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers,
 			map_pools=self.cfg.map_pools, map_default_pool=self.cfg.map_default_pool,
-			map_current_pool=self.cfg.map_current_pool
+			map_current_pool=self.cfg.map_current_pool,
+			vote_server=self.cfg.vote_server, show_teams_when_voting=self.cfg.show_teams_when_voting
 		)
 
 	async def promote(self, ctx):
