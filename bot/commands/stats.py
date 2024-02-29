@@ -148,7 +148,7 @@ async def rank(ctx, player: Member = None):
 		changes = await db.select(
 			('at', 'rating_change', 'match_id', 'reason'),
 			'qc_rating_history', where=dict(user_id=target.id, channel_id=ctx.qc.rating.channel_id),
-			order_by='id', limit=5
+			order_by='id', limit=10
 		)
 		if len(changes):
 			embed.add_field(
