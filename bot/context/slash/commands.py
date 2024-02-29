@@ -474,6 +474,48 @@ async def maps(
 ): await run_slash(bot.commands.maps, interaction=interaction, queue=queue, one=False)
 maps.on_autocomplete("queue")(autocomplete.queues)
 
+@dc.slash_command(name='map_pools', description='List a map pools for a queue or maps for a pool.', **guild_kwargs)
+async def map_pools(
+		interaction: Interaction,
+		queue: str,
+		pool: str = None
+): await run_slash(bot.commands.show_map_pools, interaction=interaction, queue=queue, pool=pool)
+map_pools.on_autocomplete("queue")(autocomplete.queues)
+
+@dc.slash_command(name='map_pool', description='Set a new map pool for a queue.', **guild_kwargs)
+async def map_pool(
+		interaction: Interaction,
+		queue: str,
+		pool: str,
+): await run_slash(bot.commands.set_map_pool, interaction=interaction, queue=queue, pool=pool)
+map_pool.on_autocomplete("queue")(autocomplete.queues)
+
+@dc.slash_command(name='map_pool_add', description='Add map(s) to existing or new pool.', **guild_kwargs)
+async def map_pool(
+		interaction: Interaction,
+		queue: str,
+		pool: str,
+		maps: str,
+): await run_slash(bot.commands.map_pool_add, interaction=interaction, queue=queue, pool=pool, maps=maps)
+map_pool.on_autocomplete("queue")(autocomplete.queues)
+
+@dc.slash_command(name='map_pool_del', description='Remove map(s) from existing pool.', **guild_kwargs)
+async def map_pool(
+		interaction: Interaction,
+		queue: str,
+		pool: str,
+		maps: str,
+): await run_slash(bot.commands.map_pool_remove, interaction=interaction, queue=queue, pool=pool, maps=maps)
+map_pool.on_autocomplete("queue")(autocomplete.queues)
+
+@dc.slash_command(name='map_pool_destroy', description='Destroy existing pool.', **guild_kwargs)
+async def map_pool(
+		interaction: Interaction,
+		queue: str,
+		pool: str,
+): await run_slash(bot.commands.map_pool_destroy, interaction=interaction, queue=queue, pool=pool)
+map_pool.on_autocomplete("queue")(autocomplete.queues)
+
 
 @dc.slash_command(name='map', description='Print a random map.', **guild_kwargs)
 async def _map(

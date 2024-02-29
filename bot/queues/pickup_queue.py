@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from core.console import log
-from core.cfg_factory import FactoryTable, CfgFactory, Variables, VariableTable
+from core.cfg_factory import FactoryTable, CfgFactory, Variables, VariableTable, ListTable
 from core.utils import get_nick, get, SafeTemplateDict
 from core.client import dc
 
 import bot
 
-
 class PickupQueue:
-
 	cfg_factory = CfgFactory(
 		table=FactoryTable(name="pq_configs", p_key="pq_id", f_key="channel_id"),
 		name="pq_config",
@@ -182,7 +180,7 @@ class PickupQueue:
 				"servers",
 				display="Servers",
 				section="Appearance",
-				description="Multiple server definition for server randomization or server voting. Check also vote_server setting.",
+				description="List of servers that will be randomly displayed on a match start. Format [{\"name\": \"server:port\"}]",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
@@ -241,6 +239,22 @@ class PickupQueue:
 				section="General",
 				description="Set a custom match life time before it times out then ranked is enabled. Default: 3 hours."
 			),
+			Variables.TextVar(
+				"map_default_pool",
+				display="Default Map Pool",
+				section="Maps",
+				default='default',
+				notnull=True,
+				description="This pool will be used by default for the queue."
+			),
+			Variables.TextVar(
+				"map_current_pool",
+				display="Current Map Pool",
+				section="Maps",
+				default='default',
+				notnull=True,
+				description="This pool will be used by for the nexte queues. It changes with votes or by setting it."
+			),
 			Variables.IntVar(
 				"map_count",
 				display="Map count",
@@ -263,6 +277,17 @@ class PickupQueue:
 					"This affects map voting pools as well. Set 0 to disable."
 				])
 			),
+			VariableTable(
+				"map_pools",
+				display="Map pools (RAW)",
+				section="Maps",
+				description="List of map pools with maps.",
+				default=[],
+				variables=[
+					Variables.StrVar("name", notnull=True),
+					ListTable("maps")
+				]
+			),
 			Variables.IntVar(
 				"vote_maps",
 				display="Vote poll map count",
@@ -281,7 +306,7 @@ class PickupQueue:
 			),
 			VariableTable(
 				"maps", display="Maps", section="Maps",
-				description="List of maps to choose from.",
+				description="List of maps to choose from. Format [ {\"name\": \"default\", \"maps\": [\"urban\",\"urban2\"]},... ]",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
@@ -360,6 +385,8 @@ class PickupQueue:
 			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
 			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
 			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers,
+			map_pools=self.cfg.map_pools, map_default_pool=self.cfg.map_default_pool,
+			map_current_pool=self.cfg.map_current_pool,
 			vote_server=self.cfg.vote_server, show_teams_when_voting=self.cfg.show_teams_when_voting
 		)
 
