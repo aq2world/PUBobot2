@@ -157,7 +157,7 @@ async def rank(ctx, player: Member = None):
 					ago=seconds_to_str(int(time() - c['at'])),
 					reason=c['reason'],
 					match_id=f"(__{c['match_id']}__)" if c['match_id'] else "",
-					change=("+" if c['rating_change'] >= 0 else "") + str(c['rating_change'])
+					change=("🟩 +" if c['rating_change'] > 0 else "🟥 " if c['rating_change'] < 0 else "🟨 ") + str(c['rating_change'])
 				) for c in changes))
 			)
 		await ctx.reply(embed=embed)
