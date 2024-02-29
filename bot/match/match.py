@@ -32,7 +32,8 @@ class Match:
 		teams=None, team_names=['Alpha', 'Beta'], team_emojis=None, ranked=False,
 		team_size=1, pick_captains="no captains", captains_role_id=None, pick_teams="draft",
 		pick_order=None, maps=[], vote_maps=0, map_count=0, check_in_timeout=0,
-		check_in_discard=True, match_lifetime=3*60*60, start_msg=None, server=None, servers=None, show_streamers=True
+		check_in_discard=True, match_lifetime=3*60*60, start_msg=None, server=None, servers=None, show_streamers=True,
+		map_pools=None, map_default_pool=None, map_current_pool=None
 	)
 
 	class Team(list):
@@ -70,7 +71,13 @@ class Match:
 			match.cfg['server'] = match.random_server(match.cfg['servers'], bot.active_servers)
 			bot.active_servers.append(match.cfg['server'])	
 
-		match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.last_maps)
+		if match.cfg['map_pools']:
+			pool = next((pool for pool in match.cfg['map_pools'] if pool["name"] == match.cfg['map_current_pool']), 
+						match.cfg['map_default_pool'])
+			match.maps = match.random_maps(pool['maps'], match.cfg['map_count'], queue.last_maps)
+		else:	
+			match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.last_maps)
+
 		match.init_captains(match.cfg['pick_captains'], match.cfg['captains_role_id'])
 		match.init_teams(match.cfg['pick_teams'])
 		if match.ranked:

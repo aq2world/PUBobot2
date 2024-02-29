@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from core.console import log
-from core.cfg_factory import FactoryTable, CfgFactory, Variables, VariableTable
+from core.cfg_factory import FactoryTable, CfgFactory, Variables, VariableTable, ListTable
 from core.utils import get_nick, get, SafeTemplateDict
 from core.client import dc
 
@@ -172,7 +172,7 @@ class PickupQueue:
 				"servers",
 				display="Servers",
 				section="Appearance",
-				description="List of servers that will be randomly displayed on a match start.",
+				description="List of servers that will be randomly displayed on a match start. Format [{\"name\": \"server:port\"}]",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
@@ -231,6 +231,14 @@ class PickupQueue:
 				notnull=True,
 				description="This pool will be used by default for the queue."
 			),
+			Variables.TextVar(
+				"map_current_pool",
+				display="Current Map Pool",
+				section="Maps",
+				default='default',
+				notnull=True,
+				description="This pool will be used by for the nexte queues. It changes with votes or by setting it."
+			),
 			Variables.IntVar(
 				"map_count",
 				display="Map count",
@@ -258,9 +266,10 @@ class PickupQueue:
 				display="Map pools (RAW)",
 				section="Maps",
 				description="List of map pools with maps.",
+				default=[],
 				variables=[
-					Variables.StrVar("pool_name", notnull=True),
-					VariableTable("maps")
+					Variables.StrVar("name", notnull=True),
+					ListTable("maps")
 				]
 			),
 			Variables.IntVar(
@@ -281,7 +290,7 @@ class PickupQueue:
 			),
 			VariableTable(
 				"maps", display="Maps", section="Maps",
-				description="List of maps to choose from.",
+				description="List of maps to choose from. Format [ {\"name\": \"default\", \"maps\": [\"urban\",\"urban2\"]},... ]",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
@@ -359,7 +368,9 @@ class PickupQueue:
 			maps=[i['name'] for i in self.cfg.maps], vote_maps=self.cfg.vote_maps,
 			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
 			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
-			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers
+			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers,
+			map_pools=self.cfg.map_pools, map_default_pool=self.cfg.map_default_pool,
+			map_current_pool=self.cfg.map_current_pool
 		)
 
 	async def promote(self, ctx):
