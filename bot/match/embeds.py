@@ -1,6 +1,7 @@
 from nextcord import Embed, Colour, Streaming
 from core.client import dc
 from core.utils import get_nick, join_and
+import urllib.parse
 
 
 class Embeds:
@@ -11,22 +12,65 @@ class Embeds:
 		# self.
 		self.footer = dict(
 			text=f"Match id: {self.m.id}",
-			icon_url=dc.user.avatar.with_size(32)
+			icon_url=dc.user.avatar.with_size(32) if dc.user.avatar else None
 			# icon_url="https://cdn.discordapp.com/avatars/240843400457355264/a51a5bf3b34d94922fd60751ba1d60ab.png?size=64"
 		)
 
-	def check_in(self, not_ready, image=None, thumbnail=None):
+
+	def check_in(self, not_ready, vote_server=False, image=None, thumbnail=None):
+		show_ranks = bool(self.m.ranked and not self.m.qc.cfg.rating_nicks)
+		show_teams = bool(self.m.cfg['show_teams_when_voting'])
 		embed = Embed(
 			colour=Colour(0xf5d858),
 			title=self.m.gt("__**{queue}** is now on the check-in stage!__").format(
 				queue=self.m.queue.name[0].upper()+self.m.queue.name[1:]
 			)
 		)
+
 		embed.add_field(
 			name=self.m.gt("Waiting on:"),
-			value="\n".join((f" \u200b <@{p.id}>" for p in not_ready)),
+			value="".join((f" \u200b <@{p.id}>" for p in not_ready)),
 			inline=False
 		)
+		
+		if show_teams and len(self.m.teams[0]):  # team vs team
+			teams_names = [
+				f"{t.emoji} \u200b **{t.name}**" +
+				(f" \u200b `〈{sum((self.m.ratings[p.id] for p in t))//(len(t) or 1)}〉`" if self.m.ranked else "")
+				for t in self.m.teams[:2]
+			]
+			team_players = [
+				" \u200b " +
+				" \u200b ".join([
+					(f"`{self.m.rank_str(p)}`" if show_ranks else "") + f"<@{p.id}>"
+					for p in t
+				])
+				for t in self.m.teams[:2]
+			]
+			team_players[1] += "\n\u200b"  # Extra empty line
+			embed.add_field(name=teams_names[0], value=team_players[0], inline=False)
+			embed.add_field(name=teams_names[1], value=team_players[1], inline=False)
+
+		if vote_server:
+			embed.add_field(
+				name="—",
+				value=self.m.gt(
+					"Please vote for the server. At least one server vote is needed for the game to begin."
+				)+ "\n\u200b",
+				inline=False
+			)
+			embed.add_field(
+					name="",
+					value="\n".join([
+						"\n\u200bServers:",
+						"\n".join([
+							f" \u200b \u200b {self.m.check_in.ABC_EMOJIS[i]} \u200b {self.m.check_in.available_servers[i]}"
+							for i in range(len(self.m.check_in.available_servers))
+						])
+					]),
+					inline=False
+			)
+
 		if not len(self.m.check_in.maps):
 			embed.add_field(
 				name="—",
@@ -45,7 +89,8 @@ class Embeds:
 					),
 					self.m.gt("React with {not_ready_emoji} to **abort**!").format(
 						not_ready_emoji=self.m.check_in.NOT_READY_EMOJI
-					) + "\n\u200b\nMaps:",
+					) + 
+					"\n\u200b\nMaps:",
 					"\n".join([
 						f" \u200b \u200b {self.m.check_in.INT_EMOJIS[i]} \u200b {self.m.check_in.maps[i]}"
 						for i in range(len(self.m.check_in.maps))
@@ -69,7 +114,6 @@ class Embeds:
 				queue=self.m.queue.name[0].upper()+self.m.queue.name[1:]
 			)
 		)
-
 		teams_names = [
 			f"{t.emoji} \u200b **{t.name}**" +
 			(f" \u200b `〈{sum((self.m.ratings[p.id] for p in t))//(len(t) or 1)}〉`" if self.m.ranked else "")
@@ -176,7 +220,11 @@ class Embeds:
 				inline=True
 			)
 		if self.m.cfg['server']:
-			embed.add_field(name=self.m.qc.gt("Server"), value=f"`{self.m.cfg['server']}`", inline=True)
+			redir_url="http://www.aq2world.com/redir?server=$1&port=$2"
+			server = self.m.cfg['server'].split(':')
+			url = redir_url.replace('$1', server[0]).replace('$2', server[1])
+			embed.add_field(name=self.m.qc.gt("Server"), 
+				value=f"[{self.m.cfg['server']}]({url})", inline=True)
 
 		if self.m.cfg['start_msg']:
 			embed.add_field(name="—", value=self.m.cfg['start_msg'] + "\n\u200b", inline=False)
