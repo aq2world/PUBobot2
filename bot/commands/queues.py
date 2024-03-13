@@ -49,7 +49,6 @@ async def add(ctx, queues: str = None):
 		if phrase:
 			await ctx.reply(phrase)
 		await ctx.notice(ctx.qc.topic)
-		return True
 	else:  # have to give some response for slash commands
 		await ctx.ignore(content=ctx.qc.topic, embed=error_embed(ctx.qc.gt("Action had no effect."), title=None))
 
@@ -351,10 +350,14 @@ async def map_pool_destroy(ctx, queue:str, pool:str):
 
 	if p_sel == None:
 		raise bot.Exc.SyntaxError(f"Map pool '{pool}' not found on the channel.")
-	else:
-		if q.cfg.map_current_pool == pool:
-			await q.cfg.update({"map_current_pool": q.cfg.map_default_pool})
-		del q.cfg.map_pools[p_idx]		
+		return
+	if pool == q.cfg.map_default_pool:
+		raise bot.Exc.SyntaxError(f"Map pool '{pool}' is the default pool and cannot be destroyed!")
+		return
+
+	if q.cfg.map_current_pool == pool:
+		await q.cfg.update({"map_current_pool": q.cfg.map_default_pool})
+	del q.cfg.map_pools[p_idx]		
 
 	await q.cfg.update({"map_pools": q.cfg.map_pools})
 
