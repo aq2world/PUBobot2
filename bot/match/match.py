@@ -13,6 +13,7 @@ from .check_in import CheckIn
 from .draft import Draft
 from .embeds import Embeds
 from .map_stitch import map_stitch
+import copy
 
 
 
@@ -72,8 +73,8 @@ class Match:
 			bot.active_servers.append(match.cfg['server'])	
 
 		if match.cfg['map_pools']:
-			pool = next((pool for pool in match.cfg['map_pools'] if pool["name"] == match.cfg['map_current_pool']), 
-						match.cfg['map_default_pool'])
+			pool = copy.deepcopy(next((pool for pool in match.cfg['map_pools'] if pool["name"] == match.cfg['map_current_pool']), 
+						match.cfg['map_default_pool']))
 			match.maps = match.random_maps(pool['maps'], match.cfg['map_count'], queue.last_maps)
 		else:	
 			match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.last_maps)

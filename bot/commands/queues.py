@@ -351,7 +351,10 @@ async def map_pool_destroy(ctx, queue:str, pool:str):
 	if p_sel == None:
 		raise bot.Exc.SyntaxError(f"Map pool '{pool}' not found on the channel.")
 	else:
-		del q.cfg.map_pools[p_idx]
+		if q.cfg.map_current_pool == pool:
+			await q.cfg.update({"map_current_pool": q.cfg.map_default_pool})
+		del q.cfg.map_pools[p_idx]		
+
 	await q.cfg.update({"map_pools": q.cfg.map_pools})
 
 	p_sel = next((p for p in q.cfg.map_pools if p["name"] == pool), None)
