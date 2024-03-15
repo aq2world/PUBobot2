@@ -39,7 +39,6 @@ async def show_queues(ctx):
 	else:
 		await ctx.reply("> [ **no queues configured** ]")
 
-
 async def set_qc(ctx, variable: str, value: str):
 	""" Configure a QueueChannel variable """
 	ctx.check_perms(ctx.Perms.ADMIN)

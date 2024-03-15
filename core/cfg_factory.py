@@ -500,7 +500,6 @@ class DurationVar(Variable):
 
 
 class VariableTable(Variable):
-
 	def __init__(
 			self, name, variables=[], blank=None, default=[], **kwargs):
 		super().__init__(name, default=default, **kwargs)
@@ -546,6 +545,25 @@ class VariableTable(Variable):
 		return [{var_name: self.variables[var_name].jsonify(value) for var_name, value in d.items()} for d in l]
 
 
+class ListTable(Variable):
+	def __init__(self, name, blank=None, default=[], **kwargs):
+		super().__init__(name, default=default, **kwargs)
+		self.blank = blank if blank else []
+
+	async def validate(self, data, guild):
+		if type(data) == str:
+			data = json.loads(data)
+		elif type(data) != list:
+			raise (ValueError('Value must be a a json string or a list.'))
+		return data
+
+	def readable(self, l):
+		return str(l)
+
+	def jsonify(self, l):
+		return l
+
+
 class Variables:
 	StrVar = StrVar
 	EmojiVar = EmojiVar
@@ -558,6 +576,7 @@ class Variables:
 	TextChanVar = TextChanVar
 	DurationVar = DurationVar
 	VariableTable = VariableTable
+	ListTable = ListTable
 
 
 class VerifyError(Exception):

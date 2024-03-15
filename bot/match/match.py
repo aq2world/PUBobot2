@@ -13,6 +13,7 @@ from .check_in import CheckIn
 from .draft import Draft
 from .embeds import Embeds
 from .map_stitch import map_stitch
+import copy
 
 
 
@@ -33,7 +34,7 @@ class Match:
 		team_size=1, pick_captains="no captains", captains_role_id=None, pick_teams="draft",
 		pick_order=None, maps=[], vote_maps=0, map_count=0, check_in_timeout=0,
 		check_in_discard=True, match_lifetime=3*60*60, start_msg=None, server=None, servers=None, show_streamers=True,
-		show_teams_when_voting=None
+		map_pools=None, map_default_pool=None, map_current_pool=None,	vote_server=False, show_teams_when_voting=None
 	)
 
 	class Team(list):
@@ -67,11 +68,17 @@ class Match:
 		# Prepare the Match object
 
 		# Randomize server if multiple servers defined
-		if match.cfg['servers']:
-			match.cfg['server'] = match.random_server(match.cfg['servers'], bot.active_servers)
+		if match.cfg['servers'] and not bool(match.cfg['vote_server']):
+			match.cfg['server'] = match.random_server()
 			bot.active_servers.append(match.cfg['server'])	
 
-		match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.last_maps)
+		if match.cfg['map_pools']:
+			pool = copy.deepcopy(next((pool for pool in match.cfg['map_pools'] if pool["name"] == match.cfg['map_current_pool']), 
+						match.cfg['map_default_pool']))
+			match.maps = match.random_maps(pool['maps'], match.cfg['map_count'], queue.last_maps)
+		else:	
+			match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.last_maps)
+
 		match.init_captains(match.cfg['pick_captains'], match.cfg['captains_role_id'])
 		match.init_teams(match.cfg['pick_teams'])
 		if match.ranked:
@@ -194,11 +201,15 @@ class Match:
 
 		return random.sample(maps, min(map_count, len(maps)))
 
-	@staticmethod
-	def random_server(servers, occupied):
-		server_names = [srv['name'] for srv in servers]
-		server_pool = [srv for srv in server_names if srv not in occupied]
+	def random_server(self):
+		server_names = [srv['name'] for srv in self.cfg['servers']]
+		server_pool = [srv for srv in server_names if srv not in bot.active_servers]
 		return random.choice(server_pool)
+
+	def available_servers(self):
+		server_names = [srv['name'] for srv in self.cfg['servers']]
+		server_pool = [srv for srv in server_names if srv not in bot.active_servers]
+		return server_pool
 
 	def sort_players(self, players):
 		""" sort given list of members by captains role and rating """
