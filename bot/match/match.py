@@ -15,8 +15,6 @@ from .embeds import Embeds
 from .map_stitch import map_stitch
 import copy
 
-
-
 class Match:
 
 	INIT = 0
