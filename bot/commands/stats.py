@@ -168,8 +168,8 @@ async def rank(ctx, player: Member = None):
 
 async def leaderboard(ctx, page: int = 1):
 	page = (page or 1) - 1
-
 	data = (await ctx.qc.get_lb())[page * 10:(page + 1) * 10]
+	
 	if len(data):
 		active_players = []  # List to store active players
 		for player in data:
@@ -187,11 +187,12 @@ async def leaderboard(ctx, page: int = 1):
 					player['ago'] = "0 days"
 				else:
 					player['ago'] = f"{int(ago_days)} days"
-				if ago_days <= 30:
+				if ago_days <= 30 and not player['is_hidden']:
 					active_players.append(player)
 			else:
 				player['ago'] = "N/A"
-				active_players.append(player)
+				if not player['is_hidden']:
+					active_players.append(player)
 
 		await ctx.reply(
 			discord_table(
