@@ -1,1 +1,16 @@
-venv
+venv__pycache__/
+bot/__pycache__/
+bot/commands/__pycache__/
+bot/context/__pycache__/
+bot/context/message/__pycache__/
+bot/context/slash/__pycache__/
+bot/match/__pycache__/
+bot/queues/__pycache__/
+bot/stats/__pycache__/
+config.cfg
+core/DBAdapters/__pycache__/
+core/__pycache__/
+logs/
+saved_state.json
+__pycache__/config.cpython-310.pyc
+.vscode/settings.json
