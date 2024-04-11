@@ -168,48 +168,24 @@ async def rank(ctx, player: Member = None):
 
 async def leaderboard(ctx, page: int = 1):
 	page = (page or 1) - 1
-	data = (await ctx.qc.get_lb())[page * 10:(page + 1) * 10]
-	
-	if len(data):
-		active_players = []  # List to store active players
-		for player in data:
-			# Get the timestamp of the last rating change for this player
-			last_change = await db.select_one(
-				['at'], "qc_rating_history", where=dict(user_id=player['user_id'], channel_id=ctx.qc.rating.channel_id),
-				order_by="id", limit=1
-			)
-			# Calculate the time since the last rating change
-			if last_change:
-				time_diff = int(time() - last_change['at'])
-				player['ago'] = seconds_to_str(time_diff)
-				ago_days = time_diff / (60 * 60 * 24)
-				if ago_days < 1:
-					player['ago'] = "0 days"
-				else:
-					player['ago'] = f"{int(ago_days)} days"
-				if ago_days <= 30 and not player['is_hidden']:
-					active_players.append(player)
-			else:
-				player['ago'] = "N/A"
-				if not player['is_hidden']:
-					active_players.append(player)
 
+	data = (await ctx.qc.get_lb())[page * 10:(page + 1) * 10]
+	if len(data):
 		await ctx.reply(
 			discord_table(
-				["№", "Rating〈Ξ〉", "Nickname", "Matches", "W/L/D", "Last activity"],
+				["№", "Rating〈Ξ〉", "Nickname", "Matches", "W/L/D"],
 				[[
 					(page * 10) + (n + 1),
-					str(active_players[n]['rating']) + ctx.qc.rating_rank(active_players[n]['rating'])['rank'],
-					active_players[n]['nick'].strip(),
-					int(active_players[n]['wins'] + active_players[n]['losses'] + active_players[n]['draws']),
+					str(data[n]['rating']) + ctx.qc.rating_rank(data[n]['rating'])['rank'],
+					data[n]['nick'].strip(),
+					int(data[n]['wins'] + data[n]['losses'] + data[n]['draws']),
 					"{0}/{1}/{2} ({3}%)".format(
-						active_players[n]['wins'],
-						active_players[n]['losses'],
-						active_players[n]['draws'],
-						int(active_players[n]['wins'] * 100 / ((active_players[n]['wins'] + active_players[n]['losses']) or 1))
-					),
-					active_players[n]['ago']
-				] for n in range(len(active_players)) if 'ago' in active_players[n]]
+						data[n]['wins'],
+						data[n]['losses'],
+						data[n]['draws'],
+						int(data[n]['wins'] * 100 / ((data[n]['wins'] + data[n]['losses']) or 1))
+					)
+				] for n in range(len(data))]
 			)
 		)
 	else:
