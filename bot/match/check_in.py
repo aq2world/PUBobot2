@@ -8,6 +8,8 @@ from core.utils import join_and
 from core.console import log
 from .map_stitch import map_stitch
 
+import copy
+
 
 class CheckIn:
 
@@ -34,8 +36,8 @@ class CheckIn:
     
 		if len(self.m.cfg['maps']) > 1 and self.m.cfg['vote_maps']:			
 			if self.m.cfg['map_pools']:
-				pool = next((pool for pool in self.m.cfg['map_pools'] if pool["name"] == self.m.cfg['map_current_pool']), 
-							self.m.cfg['map_default_pool'])
+				pool = copy.deepcopy(next((pool for pool in self.m.cfg['map_pools'] if pool["name"] == self.m.cfg['map_current_pool']), 
+							self.m.cfg['map_default_pool']))
 				self.maps = self.m.random_maps(pool['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
 			else:	
 				self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
