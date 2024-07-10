@@ -115,7 +115,6 @@ class Match:
 			ready_players=[p.id for p in self.check_in.ready_players if p]
 		)
 
-avail
 	@classmethod
 	async def from_json(cls, data):
 		if (qc := bot.queue_channels.get(data['channel_id'])) is None:
