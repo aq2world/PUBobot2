@@ -200,11 +200,15 @@ class Match:
 		return random.sample(maps, min(map_count, len(maps)))
 
 	def random_server(self):
+		if (not self.cfg['servers']):
+			return None
 		server_names = [srv['name'] for srv in self.cfg['servers']]
 		server_pool = [srv for srv in server_names if srv not in bot.active_servers]
 		return random.choice(server_pool)
 
 	def available_servers(self):
+		if (not self.cfg['servers']):
+			return []
 		server_names = [srv['name'] for srv in self.cfg['servers']]
 		server_pool = [srv for srv in server_names if srv not in bot.active_servers]
 		return server_pool
