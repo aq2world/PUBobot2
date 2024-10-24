@@ -11,7 +11,7 @@ def map_stitch(maps: list):
     
     # Aspect ratio of images = 1.7
     thumb_size = [800, math.ceil(800/1.7)]
-    image_urls = [base_url + name + '.jpg' for name in maps]
+    image_urls = [base_url.replace(" ", "") + name + '.jpg' for name in maps]
 
     # Download the images and resize
     images = []
