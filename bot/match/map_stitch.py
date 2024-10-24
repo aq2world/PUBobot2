@@ -11,7 +11,7 @@ def map_stitch(maps: list):
     
     # Aspect ratio of images = 1.7
     thumb_size = [800, math.ceil(800/1.7)]
-    image_urls = [base_url + name + '.jpg' for name in maps]
+    image_urls = [base_url.replace(" ", "") + name + '.jpg' for name in maps]
 
     # Download the images and resize
     images = []
@@ -21,6 +21,7 @@ def map_stitch(maps: list):
             image = image.resize((thumb_size[0], thumb_size[1]))
             images.append(image)
         except Exception as e:
+            log.error(f"Error downloading or resizing image from {url}: {e}")
             images.append(Image.new('RGB', (thumb_size[0], thumb_size[1])))               
 
     # Calculate the width and height of the new image
@@ -34,7 +35,7 @@ def map_stitch(maps: list):
     if img_cnt == 1:
         cols = 1
     else:
-        for i in range(2,max_cols+1):
+        for i in range(2, max_cols + 1):
             cols = i if (img_cnt % i == 0) else cols
             cols = i if (img_cnt % i == 1) else cols
             if (cols % i == 0):
@@ -43,7 +44,7 @@ def map_stitch(maps: list):
     rows = math.ceil(img_cnt / cols)
 
     # Prefer higher col count
-    if (rows > cols):
+    if rows > cols:
         tmp = rows
         rows = cols
         cols = tmp
@@ -58,7 +59,11 @@ def map_stitch(maps: list):
     draw = ImageDraw.Draw(new_image)
 
     # Load a system font
-    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
+    except Exception as e:
+        log.error(f"Error loading font: {e}")
+        return None
 
     # Paste each image into the new image at the correct position and draw the filename
     try:
@@ -73,9 +78,14 @@ def map_stitch(maps: list):
             text_y = y
             draw.text((text_x, text_y), filename, fill='white', font=font)
     except Exception as e:
-        log.error("\n Error creating map collage: " + str(e) + "\n")
+        log.error(f"Error creating map collage: {e}")
+        return None
 
     # Save the new image
-    imgfile = NamedTemporaryFile(suffix=".jpg", delete=False)
-    new_image.save(imgfile.name)
-    return imgfile.name
+    try:
+        imgfile = NamedTemporaryFile(suffix=".jpg", delete=False)
+        new_image.save(imgfile.name)
+        return imgfile.name
+    except Exception as e:
+        log.error(f"Error saving the new image: {e}")
+        return None
