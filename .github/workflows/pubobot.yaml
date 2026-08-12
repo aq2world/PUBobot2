@@ -28,7 +28,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Pubobot (alpine)
+      - name: Build and Push Pubobot
         run: |
-          docker build -t aqtiongame/pubobot:alpine-${{ github.event.inputs.release_tag }} -f Dockerfile .
-          docker push aqtiongame/pubobot:alpine-${{ github.event.inputs.release_tag }}
+          docker build -t aqtiongame/pubobot:${{ github.event.inputs.release_tag }} -f Dockerfile .
+          docker push aqtiongame/pubobot:${{ github.event.inputs.release_tag }}
