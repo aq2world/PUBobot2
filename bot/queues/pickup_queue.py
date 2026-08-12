@@ -77,6 +77,14 @@ class PickupQueue:
 					"and abort the match if not everyone is ready in time.")),
 				notnull=True
 			),
+			Variables.BoolVar(
+				"check_in_discard_immediately",
+				display="Check-in discard immediately",
+				section="General",
+				default=1,
+				description="Revert check-in state immediately when someone discards check-in",
+				notnull=True
+			),
 			Variables.IntVar(
 				"team_size",
 				display="Force team size",
@@ -260,7 +268,7 @@ class PickupQueue:
 				display="Map count",
 				section="Maps",
 				default=1,
-				verify=lambda n: 0 <= n <= 5,
+				verify=lambda n: 0 <= n <= 15,
 				verify_message="Maps number must be between 0 and 5.",
 				description="Number of maps to show on match start."
 			),
@@ -383,7 +391,8 @@ class PickupQueue:
 			pick_teams=self.cfg.pick_teams, pick_order=self.cfg.pick_order,
 			maps=[i['name'] for i in self.cfg.maps], vote_maps=self.cfg.vote_maps,
 			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
-			check_in_discard=self.cfg.check_in_discard, match_lifetime=self.cfg.match_lifetime,
+			check_in_discard=self.cfg.check_in_discard, check_in_discard_immediately=self.cfg.check_in_discard_immediately,
+			match_lifetime=self.cfg.match_lifetime,
 			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers,
 			map_pools=self.cfg.map_pools, map_default_pool=self.cfg.map_default_pool,
 			map_current_pool=self.cfg.map_current_pool,
@@ -432,6 +441,9 @@ class PickupQueue:
 			or self.cfg.whitelist_role and self.cfg.whitelist_role not in member.roles
 		):
 			return bot.Qr.NotAllowed
+
+		if len(self.queue) >= self.cfg.size:
+			return bot.Qr.QueueFull
 
 		if member not in self.queue:
 			self.queue.append(member)

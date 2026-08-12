@@ -1,4 +1,4 @@
-from nextcord import Embed, Colour, Streaming
+from nextcord import Embed, Colour, Streaming, Member
 from core.client import dc
 from core.utils import get_nick, join_and
 import urllib.parse
@@ -12,10 +12,23 @@ class Embeds:
 		# self.
 		self.footer = dict(
 			text=f"Match id: {self.m.id}",
-			icon_url=dc.user.avatar.with_size(32) if dc.user.avatar else None
+			icon_url=dc.user.avatar.with_size(32).url if dc.user.avatar else None
 			# icon_url="https://cdn.discordapp.com/avatars/240843400457355264/a51a5bf3b34d94922fd60751ba1d60ab.png?size=64"
 		)
 
+	def _ranked_nick(self, p: Member):
+		if self.m.ranked:
+			if self.m.qc.cfg.emoji_ranks:
+				return f'{self.m.rank_str(p)}`{get_nick(p)}`'
+			return f'`{self.m.rank_str(p)}{get_nick(p)}`'
+		return f'`{get_nick(p)}`'
+
+	def _ranked_mention(self, p: Member):
+		if self.m.ranked:
+			if self.m.qc.cfg.emoji_ranks:
+				return f'{self.m.rank_str(p)}{p.mention}'
+			return f'`{self.m.rank_str(p)}`{p.mention}'
+		return p.mention
 
 	def check_in(self, not_ready, vote_server=False, image=None, thumbnail=None):
 		show_ranks = bool(self.m.ranked and not self.m.qc.cfg.rating_nicks)
@@ -29,7 +42,7 @@ class Embeds:
 
 		embed.add_field(
 			name=self.m.gt("Waiting on:"),
-			value="".join((f" \u200b <@{p.id}>" for p in not_ready)),
+			value="".join((f" \u200b {'❌ ' if p in self.m.check_in.discarded_players else ''}<@{p.id}>" for p in not_ready)),
 			inline=False
 		)
 		
@@ -42,7 +55,7 @@ class Embeds:
 			team_players = [
 				" \u200b " +
 				" \u200b ".join([
-					(f"`{self.m.rank_str(p)}`" if show_ranks else "") + f"<@{p.id}>"
+					self._ranked_mention(p) if show_ranks else p.mention
 					for p in t
 				])
 				for t in self.m.teams[:2]
@@ -121,8 +134,7 @@ class Embeds:
 		]
 		team_players = [
 			" \u200b ".join([
-				(f"`{self.m.rank_str(p)}" if self.m.ranked else "`") + f"{get_nick(p)}`"
-				for p in t
+				self._ranked_nick(p) for p in t
 			]) if len(t) else self.m.gt("empty")
 			for t in self.m.teams[:2]
 		]
@@ -133,10 +145,7 @@ class Embeds:
 			embed.add_field(
 				name=self.m.gt("Unpicked:"),
 				value="\n".join((
-					" \u200b `{rank}{name}`".format(
-						rank=self.m.rank_str(p) if self.m.ranked else "",
-						name=get_nick(p)
-					)
+					" \u200b " + self._ranked_nick(p)
 				) for p in self.m.teams[2]),
 				inline=False
 			)
@@ -185,8 +194,7 @@ class Embeds:
 			team_players = [
 				" \u200b " +
 				" \u200b ".join([
-					(f"`{self.m.rank_str(p)}`" if show_ranks else "") + f"<@{p.id}>"
-					for p in t
+					self._ranked_mention(p) for p in t
 				])
 				for t in self.m.teams[:2]
 			]
