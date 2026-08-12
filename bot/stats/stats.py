@@ -30,7 +30,8 @@ db.ensure_table(dict(
 		dict(cname="wins", ctype=db.types.int, notnull=True, default=0),
 		dict(cname="losses", ctype=db.types.int, notnull=True, default=0),
 		dict(cname="draws", ctype=db.types.int, notnull=True, default=0),
-		dict(cname="streak", ctype=db.types.int, notnull=True, default=0)
+		dict(cname="streak", ctype=db.types.int, notnull=True, default=0),
+		dict(cname="last_ranked_match_at", ctype=db.types.int, notnull=False)
 	],
 	primary_keys=["user_id", "channel_id"]
 ))
@@ -154,10 +155,12 @@ async def register_match_unranked(ctx, m):
 
 
 async def register_match_ranked(ctx, m):
+	now = int(time.time())
+
 	await db.insert('qc_matches', dict(
 		match_id=m.id, channel_id=m.qc.id, queue_id=m.queue.cfg.p_key, queue_name=m.queue.name,
 		alpha_name=m.teams[0].name, beta_name=m.teams[1].name,
-		at=int(time.time()), ranked=1, winner=m.winner,
+		at=now, ranked=1, winner=m.winner,
 		alpha_score=m.scores[0], beta_score=m.scores[1], maps="\n".join(m.maps)
 	))
 
@@ -202,7 +205,8 @@ async def register_match_ranked(ctx, m):
 				wins=after[p.id]['wins'],
 				losses=after[p.id]['losses'],
 				draws=after[p.id]['draws'],
-				streak=after[p.id]['streak']
+				streak=after[p.id]['streak'],
+				last_ranked_match_at=now,
 			),
 			keys=dict(channel_id=m.qc.rating.channel_id, user_id=p.id)
 		)
@@ -214,7 +218,7 @@ async def register_match_ranked(ctx, m):
 		await db.insert('qc_rating_history', dict(
 			channel_id=m.qc.rating.channel_id,
 			user_id=p.id,
-			at=int(time.time()),
+			at=now,
 			rating_before=before[p.id]['rating'],
 			rating_change=after[p.id]['rating']-before[p.id]['rating'],
 			deviation_before=before[p.id]['deviation'],
@@ -338,13 +342,15 @@ async def top(channel_id, time_gap=None):
 async def last_games(channel_id):
 	#  get last played ranked match for all players
 	data = await db.fetchall(
-		"SELECT m.at, p.* FROM `qc_players` AS p " +
-		"JOIN qc_matches AS m ON m.match_id=("
-		"	SELECT match_id FROM qc_rating_history as h WHERE h.user_id=p.user_id ORDER BY match_id DESC LIMIT 1"
-		") " +
-		"WHERE p.channel_id=%s AND p.rating IS NOT NULL AND p.deviation IS NOT NULL "
-		"GROUP BY p.user_id",
-		(channel_id, )
+		"SELECT tmp.at, p.* " +
+		"FROM `qc_players` AS p " +
+		"LEFT JOIN (" +
+		"  SELECT MAX(h.at) AS at, h.user_id FROM `qc_rating_history` AS h" +
+		"    WHERE h.channel_id=%s AND h.match_id IS NOT NULL" +
+		"    GROUP BY h.user_id" +
+		") AS tmp ON p.user_id=tmp.user_id " +
+		"WHERE p.channel_id=%s",
+		(channel_id, channel_id)
 	)
 	return data
 
