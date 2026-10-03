@@ -9,8 +9,6 @@ from core.utils import join_and
 from core.console import log
 from .map_stitch import map_stitch
 
-import copy
-
 
 class CheckIn:
 
@@ -38,12 +36,7 @@ class CheckIn:
 		self.server_votes = [set() for i in self.available_servers]
     
 		if len(self.m.cfg['maps']) > 1 and self.m.cfg['vote_maps']:			
-			if self.m.cfg['map_pools']:
-				pool = copy.deepcopy(next((pool for pool in self.m.cfg['map_pools'] if pool["name"] == self.m.cfg['map_current_pool']), 
-							self.m.cfg['map_default_pool']))
-				self.maps = self.m.random_maps(pool['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
-			else:	
-				self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
+			self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
 			maps_img = map_stitch(self.maps)
 			# Generate map thumbnails
 			self.image = maps_img
@@ -209,7 +202,7 @@ class CheckIn:
 
 		if str(reaction) in self.INT_EMOJIS:
 			idx = self.INT_EMOJIS.index(str(reaction))
-			if idx <= len(self.maps):
+			if idx < len(self.maps):
 				if remove:
 					self.map_votes[idx].discard(user_id)
 					#self.ready_players.discard(users[user_id])
@@ -220,11 +213,12 @@ class CheckIn:
 				await self.refresh(bot.SystemContext(self.m.queue.qc))
 		elif str(reaction) in self.ABC_EMOJIS:
 			idx = self.ABC_EMOJIS.index(str(reaction))
-			if remove:
-				self.server_votes[idx].discard(user_id)
-			else:
-				self.server_votes[idx].add(user_id)
-			await self.refresh(bot.SystemContext(self.m.queue.qc))
+			if idx < len(self.server_votes):
+				if remove:
+					self.server_votes[idx].discard(user_id)
+				else:
+					self.server_votes[idx].add(user_id)
+				await self.refresh(bot.SystemContext(self.m.queue.qc))
 
 		elif str(reaction) == self.READY_EMOJI:
 			if remove:

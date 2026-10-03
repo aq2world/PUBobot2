@@ -4,7 +4,7 @@ __all__ = [
 ]
 
 import json
-from core.utils import find, get, split_big_text
+from core.utils import find, split_big_text
 from core.console import log
 import bot
 
@@ -14,7 +14,7 @@ async def create_pickup(ctx, name: str, size: int = 8):
 	ctx.check_perms(ctx.Perms.ADMIN)
 	try:
 		pq = await ctx.qc.new_queue(ctx, name, size, bot.PickupQueue)
-	except ValueError as e:
+	except Exception as e:
 		raise bot.Exc.ValueError(str(e))
 	else:
 		await ctx.success(f"[**{pq.name}** ({pq.status})]")
@@ -23,10 +23,12 @@ async def create_pickup(ctx, name: str, size: int = 8):
 async def delete_queue(ctx, queue: str):
 	""" Delete a queue """
 	ctx.check_perms(ctx.Perms.ADMIN)
-	if (q := get(ctx.qc.queues, name=queue)) is None:
-		raise bot.Exc.NotFoundError(f"Queue '{queue}' not found on the channel..")
+	if (q := find(lambda i: i.name.lower() == queue.lower(), ctx.qc.queues)) is None:
+		raise bot.Exc.NotFoundError(f"Queue '{queue}' not found on the channel.")
 	await q.cfg.delete()
 	ctx.qc.queues.remove(q)
+	if q in bot.active_queues:
+		bot.active_queues.remove(q)
 	await show_queues(ctx)
 
 

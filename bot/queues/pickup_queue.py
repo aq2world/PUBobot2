@@ -2,7 +2,7 @@
 
 from core.console import log
 from core.cfg_factory import FactoryTable, CfgFactory, Variables, VariableTable, ListTable
-from core.utils import get_nick, get, SafeTemplateDict
+from core.utils import get_nick, get, find, SafeTemplateDict
 from core.client import dc
 
 import bot
@@ -248,20 +248,10 @@ class PickupQueue:
 				description="Set a custom match life time before it times out then ranked is enabled. Default: 3 hours."
 			),
 			Variables.TextVar(
-				"map_default_pool",
-				display="Default Map Pool",
-				section="Maps",
-				default='default',
-				notnull=True,
-				description="This pool will be used by default for the queue."
-			),
-			Variables.TextVar(
 				"map_current_pool",
 				display="Current Map Pool",
 				section="Maps",
-				default='default',
-				notnull=True,
-				description="This pool will be used by for the nexte queues. It changes with votes or by setting it."
+				description="Map pool used for the next matches. If not set or not found, the maps list is used."
 			),
 			Variables.IntVar(
 				"map_count",
@@ -289,7 +279,7 @@ class PickupQueue:
 				"map_pools",
 				display="Map pools (RAW)",
 				section="Maps",
-				description="List of map pools with maps.",
+				description="Alternative map pools. Format [{\"name\": \"ctf\", \"maps\": [\"urban\", \"urban2\"]}]",
 				default=[],
 				variables=[
 					Variables.StrVar("name", notnull=True),
@@ -314,7 +304,7 @@ class PickupQueue:
 			),
 			VariableTable(
 				"maps", display="Maps", section="Maps",
-				description="List of maps to choose from. Format [ {\"name\": \"default\", \"maps\": [\"urban\",\"urban2\"]},... ]",
+				description="Default list of maps to choose from. Format [{\"name\": \"urban\"}, {\"name\": \"urban2\"}]",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
@@ -331,7 +321,12 @@ class PickupQueue:
 	@classmethod
 	async def create(cls, ctx, name, size=2):
 		cfg = await cls.cfg_factory.spawn(ctx.channel.guild, f_key=ctx.channel.id)
-		await cfg.update({"name": name, "size": str(size)})
+		try:
+			await cfg.update({"name": name, "size": str(size)})
+		except Exception:
+			# do not leave a half-configured queue in the database
+			await cfg.delete()
+			raise
 		return cls(ctx.qc, cfg)
 
 	def serialize(self):
@@ -382,6 +377,14 @@ class PickupQueue:
 	def length(self):
 		return len(self.queue)
 
+	def active_maps(self):
+		""" Map names of the current map pool, or of the maps list if no pool is selected """
+		if self.cfg.map_current_pool:
+			pool = find(lambda p: p['name'].lower() == self.cfg.map_current_pool.lower(), self.cfg.map_pools)
+			if pool:
+				return list(pool['maps'])
+		return [i['name'] for i in self.cfg.maps]
+
 	def _match_cfg(self):
 		return dict(
 			team_names=self.cfg.team_names.split(" ") if self.cfg.team_names else None,
@@ -389,13 +392,11 @@ class PickupQueue:
 			ranked=self.cfg.ranked, pick_captains=self.cfg.pick_captains,
 			captains_role_id=self.cfg.captains_role.id if self.cfg.captains_role else None,
 			pick_teams=self.cfg.pick_teams, pick_order=self.cfg.pick_order,
-			maps=[i['name'] for i in self.cfg.maps], vote_maps=self.cfg.vote_maps,
+			maps=self.active_maps(), vote_maps=self.cfg.vote_maps,
 			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
 			check_in_discard=self.cfg.check_in_discard, check_in_discard_immediately=self.cfg.check_in_discard_immediately,
 			match_lifetime=self.cfg.match_lifetime,
 			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers,
-			map_pools=self.cfg.map_pools, map_default_pool=self.cfg.map_default_pool,
-			map_current_pool=self.cfg.map_current_pool,
 			vote_server=self.cfg.vote_server, show_teams_when_voting=self.cfg.show_teams_when_voting
 		)
 
