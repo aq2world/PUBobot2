@@ -105,39 +105,45 @@ async def _remove(ctx: MessageContext, args: str = None):
 async def _queues(ctx: MessageContext, args: str = None):
 	await bot.commands.show_queues(ctx)
 
-'''
+@message_command('cooldown')
+async def _map_cooldown(ctx: MessageContext, args: str = None):
+	await bot.commands.map_cooldown(ctx, args)
+
+
+def _pool_args(args: str, count: int):
+	""" Split '<queue> <pool> [maps...]' into count parts, the last part keeps the rest of the line """
+	parts = [part.strip() for part in args.split(None, count - 1)] if args else []
+	return parts + [None] * (count - len(parts))
+
+
 @message_command('pools')
 async def _map_pools(ctx: MessageContext, args: str = None):
-	queue = args.split(' ')[0] if args and len(args.split(' ')) > 0 else None
-	pool = args.split(' ')[1] if args and len(args.split(' ')) > 1 else None
+	queue, pool = _pool_args(args, 2)
 	await bot.commands.show_map_pools(ctx, queue, pool)
+
 
 @message_command('pool')
 async def _map_pool(ctx: MessageContext, args: str = None):
-	queue = args.split(' ')[0] if args and len(args.split(' ')) > 0 else None
-	pool = args.split(' ')[1] if args and len(args.split(' ')) > 1 else None
+	queue, pool = _pool_args(args, 2)
 	await bot.commands.set_map_pool(ctx, queue, pool)
+
 
 @message_command('pooladd')
 async def _map_pool_add(ctx: MessageContext, args: str = None):
-	queue = args.split(' ')[0] if args and len(args.split(' ')) > 0 else None
-	pool = args.split(' ')[1] if args and len(args.split(' ')) > 1 else None
-	maps = args.split(' ')[2] if args and len(args.split(' ')) > 2 else None
+	queue, pool, maps = _pool_args(args, 3)
 	await bot.commands.map_pool_add(ctx, queue, pool, maps)
+
 
 @message_command('pooldel')
 async def _map_pool_remove(ctx: MessageContext, args: str = None):
-	queue = args.split(' ')[0] if args and len(args.split(' ')) > 0 else None
-	pool = args.split(' ')[1] if args and len(args.split(' ')) > 1 else None
-	maps = args.split(' ')[2] if args and len(args.split(' ')) > 2 else None
+	queue, pool, maps = _pool_args(args, 3)
 	await bot.commands.map_pool_remove(ctx, queue, pool, maps)
+
 
 @message_command('pooldestroy')
 async def _map_pool_destroy(ctx: MessageContext, args: str = None):
-	queue = args.split(' ')[0] if args and len(args.split(' ')) > 0 else None
-	pool = args.split(' ')[1] if args and len(args.split(' ')) > 1 else None
+	queue, pool = _pool_args(args, 2)
 	await bot.commands.map_pool_destroy(ctx, queue, pool)
-'''
 
 @message_command('matches')
 async def _matches(ctx: MessageContext, args: str = None):
@@ -157,6 +163,12 @@ async def _ready(ctx: MessageContext, args: str = None):
 @message_command('notready', 'nr')
 async def _not_ready(ctx: MessageContext, args: str = None):
 	await bot.commands.set_ready(ctx, is_ready=False)
+
+
+@message_command('redo')
+async def _redo(ctx: MessageContext, args: str = None):
+	queue, exclude = await bot.commands.parse_redo_args(ctx, args)
+	await bot.commands.redo(ctx, queue=queue, exclude=exclude)
 
 
 @message_command('subme')

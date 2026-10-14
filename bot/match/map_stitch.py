@@ -2,11 +2,30 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 from io import BytesIO
 import os
+import asyncio
 from core.console import log
 from tempfile import NamedTemporaryFile
 import math
 
+async def map_stitch_async(maps: list):
+    """ Build the map collage in a worker thread so image downloads do not block the bot """
+    if not maps:
+        return None
+    return await asyncio.get_running_loop().run_in_executor(None, map_stitch, list(maps))
+
+
+def map_stitch_cleanup(path):
+    """ Remove a collage temp file created by map_stitch """
+    if path:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
 def map_stitch(maps: list):
+    if not maps:
+        return None
     base_url = 'https://raw.githubusercontent.com/vrolse/AQ2-pickup-bot/main/thumbnails/'
     
     # Aspect ratio of images = 1.7

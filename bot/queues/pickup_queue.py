@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+from time import time
 from core.console import log
 from core.cfg_factory import FactoryTable, CfgFactory, Variables, VariableTable, ListTable
-from core.utils import get_nick, get, SafeTemplateDict
+from core.utils import get_nick, get, find, seconds_to_str, SafeTemplateDict
 from core.client import dc
+from nextcord import DiscordException
 
 import bot
 
@@ -32,7 +34,8 @@ class PickupQueue:
 				"size",
 				display="Queue size",
 				section="General",
-				verify=lambda i: 0 < i < 1001,
+				verify=lambda i: 2 <= i <= 100,
+				verify_message="Queue size must be between 2 and 100.",
 				notnull=True
 			),
 			Variables.BoolVar(
@@ -57,6 +60,17 @@ class PickupQueue:
 				section="General",
 				default=1,
 				notnull=True
+			),
+			Variables.DurationVar(
+				"start_delay",
+				display="Start delay",
+				section="General",
+				verify=lambda i: 0 < i <= 300,
+				verify_message="Start delay must be between 1 second and 5 minutes.",
+				description="\n".join([
+					"Wait this long after the queue fills before starting the match.",
+					"A player leaving during the delay cancels the start, so a last moment remove is never put in a match."
+				])
 			),
 			Variables.DurationVar(
 				"check_in_timeout",
@@ -247,21 +261,11 @@ class PickupQueue:
 				section="General",
 				description="Set a custom match life time before it times out then ranked is enabled. Default: 3 hours."
 			),
-			Variables.TextVar(
-				"map_default_pool",
-				display="Default Map Pool",
-				section="Maps",
-				default='default',
-				notnull=True,
-				description="This pool will be used by default for the queue."
-			),
-			Variables.TextVar(
+			Variables.StrVar(
 				"map_current_pool",
 				display="Current Map Pool",
 				section="Maps",
-				default='default',
-				notnull=True,
-				description="This pool will be used by for the nexte queues. It changes with votes or by setting it."
+				description="Map pool used for the next matches. If not set, not found or empty, the maps list is used."
 			),
 			Variables.IntVar(
 				"map_count",
@@ -269,7 +273,7 @@ class PickupQueue:
 				section="Maps",
 				default=1,
 				verify=lambda n: 0 <= n <= 15,
-				verify_message="Maps number must be between 0 and 5.",
+				verify_message="Maps number must be between 0 and 15.",
 				description="Number of maps to show on match start."
 			),
 			Variables.IntVar(
@@ -285,11 +289,22 @@ class PickupQueue:
 					"This affects map voting pools as well. Set 0 to disable."
 				])
 			),
+			Variables.StrVar(
+				"map_cooldown_group",
+				display="Map cooldown group",
+				section="Maps",
+				verify=lambda s: not any((c in s for c in " \t\n")),
+				verify_message="Map cooldown group must be one word.",
+				description="\n".join([
+					"Queues on this channel with the same group name share their played maps history,",
+					"so a map played in one queue is on cooldown in the others too. Each queue applies its own map_cooldown."
+				])
+			),
 			VariableTable(
 				"map_pools",
 				display="Map pools (RAW)",
 				section="Maps",
-				description="List of map pools with maps.",
+				description="Alternative map pools. Format [{\"name\": \"ctf\", \"maps\": [\"urban\", \"urban2\"]}]",
 				default=[],
 				variables=[
 					Variables.StrVar("name", notnull=True),
@@ -305,6 +320,16 @@ class PickupQueue:
 				verify_message="Vote maps number must be between 2 and 9.",
 				description="Set to enable map voting, this requires check-in timeout to be set."
 			),
+			Variables.StrVar(
+				"redo_queue",
+				display="Redo queue",
+				section="General",
+				default="split",
+				description="\n".join([
+					"Queue that receives the players of a redone match when they no longer fit into this queue,",
+					"for example because others joined it in the meantime."
+				])
+			),
 			VariableTable(
 				"aliases", display="Aliases", section="General",
 				description="Other names for this queue, you can also group queues by giving them a same alias.",
@@ -314,13 +339,18 @@ class PickupQueue:
 			),
 			VariableTable(
 				"maps", display="Maps", section="Maps",
-				description="List of maps to choose from. Format [ {\"name\": \"default\", \"maps\": [\"urban\",\"urban2\"]},... ]",
+				description="Default list of maps to choose from. Format [{\"name\": \"urban\"}, {\"name\": \"urban2\"}]",
 				variables=[
 					Variables.StrVar("name", notnull=True)
 				]
 			)
 		]
 	)
+
+	# Words that select the maps list in !pool. 'default' is also accepted there unless a pool has that name,
+	# since older versions encouraged a pool called 'default'.
+	RESERVED_POOL_NAMES = ('none', 'null')
+	MAPS_LIST_KEYWORDS = ('none', 'null', 'default')
 
 	@staticmethod
 	def validate_name(name):
@@ -329,9 +359,21 @@ class PickupQueue:
 		return name
 
 	@classmethod
+	def validate_pool_name(cls, name):
+		""" New pool names are single words and must not collide with the keywords that select the maps list """
+		if not len(name) or any((c in name for c in ",: \t\n")) or name.lower() in cls.RESERVED_POOL_NAMES:
+			raise ValueError(f"Invalid pool name '{name}'. A pool name must be one word and can not be 'none'.")
+		return name
+
+	@classmethod
 	async def create(cls, ctx, name, size=2):
 		cfg = await cls.cfg_factory.spawn(ctx.channel.guild, f_key=ctx.channel.id)
-		await cfg.update({"name": name, "size": str(size)})
+		try:
+			await cfg.update({"name": name, "size": str(size)})
+		except Exception:
+			# do not leave a half-configured queue in the database
+			await cfg.delete()
+			raise
 		return cls(ctx.qc, cfg)
 
 	def serialize(self):
@@ -353,7 +395,9 @@ class PickupQueue:
 
 		players = [guild.get_member(user_id) for user_id in data['players']]
 		if None in players:
-			raise bot.Exc.ValueError(f"Error fetching guild members.")
+			# a member who left while the bot was down should not cost the others their place
+			log.error(f"Dropping {players.count(None)} missing member(s) from queue '{q.name}' ({q.id}) state.")
+			players = [p for p in players if p is not None]
 
 		q.queue = players
 		if q.length and q not in bot.active_queues:
@@ -364,7 +408,7 @@ class PickupQueue:
 		self.cfg = cfg
 		self.id = self.cfg.p_key
 		self.queue = []
-		self.last_maps = []
+		self.start_at = None  # timestamp of a pending delayed autostart
 
 	@property
 	def name(self):
@@ -382,20 +426,73 @@ class PickupQueue:
 	def length(self):
 		return len(self.queue)
 
+	MAP_HISTORY_LIMIT = 100  # finished matches kept per history
+
+	@property
+	def map_history_key(self):
+		""" Queues sharing a map_cooldown_group share one history, other queues have their own """
+		if self.cfg.map_cooldown_group:
+			return "group:" + self.cfg.map_cooldown_group.lower()
+		return "queue:" + str(self.id)
+
+	@property
+	def map_history(self):
+		""" Finished matches' maps, most recent last. Shared with the queues in the same cooldown group """
+		return self.qc.map_history.get(self.map_history_key, [])
+
+	def recent_maps(self):
+		""" Maps played in the last map_cooldown matches of this queue's history, these are avoided when picking maps """
+		if not self.cfg.map_cooldown:
+			return []
+		return [m for played in self.map_history[-self.cfg.map_cooldown:] for m in played]
+
+	def cooldown_maps(self):
+		""" Maps currently on cooldown as (map, matches left) pairs, the most recently played first """
+		if not self.cfg.map_cooldown:
+			return []
+		result = {}
+		window = self.map_history[-self.cfg.map_cooldown:]
+		for age, played in enumerate(reversed(window)):  # age 0 is the latest match
+			for m in played:
+				result.setdefault(m, self.cfg.map_cooldown - age)
+		return list(result.items())
+
+	def record_maps(self, maps):
+		""" Remember the maps of a finished match """
+		if not len(maps):
+			return
+		history = self.qc.map_history.setdefault(self.map_history_key, [])
+		history.append(list(maps))
+		del history[:-self.MAP_HISTORY_LIMIT]
+
+	def find_pool(self, name):
+		""" Find a map pool by name, case-insensitively """
+		name = (name or '').strip().lower()
+		return find(lambda p: p['name'].lower() == name, self.cfg.map_pools) if name else None
+
+	def active_pool(self):
+		""" The selected map pool if it exists and has maps, otherwise None (the maps list is used) """
+		pool = self.find_pool(self.cfg.map_current_pool)
+		return pool if pool and len(pool['maps']) else None
+
+	def active_maps(self):
+		""" Map names of the active map pool, or of the maps list if no usable pool is selected """
+		if (pool := self.active_pool()) is not None:
+			return list(pool['maps'])
+		return [i['name'] for i in self.cfg.maps]
+
 	def _match_cfg(self):
 		return dict(
-			team_names=self.cfg.team_names.split(" ") if self.cfg.team_names else None,
-			team_emojis=self.cfg.team_emojis.split(" ") if self.cfg.team_emojis else None,
+			team_names=self.cfg.team_names.split() if self.cfg.team_names else None,
+			team_emojis=self.cfg.team_emojis.split() if self.cfg.team_emojis else None,
 			ranked=self.cfg.ranked, pick_captains=self.cfg.pick_captains,
 			captains_role_id=self.cfg.captains_role.id if self.cfg.captains_role else None,
 			pick_teams=self.cfg.pick_teams, pick_order=self.cfg.pick_order,
-			maps=[i['name'] for i in self.cfg.maps], vote_maps=self.cfg.vote_maps,
+			maps=self.active_maps(), vote_maps=self.cfg.vote_maps,
 			map_count=self.cfg.map_count, check_in_timeout=self.cfg.check_in_timeout,
 			check_in_discard=self.cfg.check_in_discard, check_in_discard_immediately=self.cfg.check_in_discard_immediately,
 			match_lifetime=self.cfg.match_lifetime,
 			start_msg=self.cfg.start_msg, server=self.cfg.server, servers=self.cfg.servers,
-			map_pools=self.cfg.map_pools, map_default_pool=self.cfg.map_default_pool,
-			map_current_pool=self.cfg.map_current_pool,
 			vote_server=self.cfg.vote_server, show_teams_when_voting=self.cfg.show_teams_when_voting
 		)
 
@@ -419,12 +516,19 @@ class PickupQueue:
 			await ctx.notice(promotion_msg)
 
 	async def reset(self):
-		for member in self.queue:
-			await member.send(content="THE QUEUE HAS BEEN CLEARED! Please readd if you want to play.")
-
-		self.queue = []
+		members, self.queue = self.queue, []
 		if self in bot.active_queues:
 			bot.active_queues.remove(self)
+
+		for member in members:
+			if not any((q.is_added(member) for q in self.qc.queues)):
+				bot.expire.cancel(self.qc, member)
+			try:
+				await member.send(content=self.qc.gt("The **{queue}** queue has been cleared, please add again if you want to play.").format(
+					queue=self.name
+				))
+			except DiscordException:
+				pass
 
 	async def check_allowed_to_add(self, member):
 		if (
@@ -452,8 +556,8 @@ class PickupQueue:
 				bot.active_queues.append(self)
 
 			if len(self.queue) == self.cfg.size and self.cfg.autostart:
-				await self.start(ctx)
-				return bot.Qr.QueueStarted
+				if await self.autostart(ctx):
+					return bot.Qr.QueueStarted
 
 			return bot.Qr.Success
 		else:
@@ -467,14 +571,47 @@ class PickupQueue:
 		members = [member for member in self.queue if member.id in ids]
 		for m in members:
 			self.queue.remove(m)
+		if len(self.queue) < self.cfg.size:
+			self.start_at = None  # a pending start is off once the queue is not full any more
 		return members
+
+	async def autostart(self, ctx):
+		""" The queue has filled up: start now, or schedule the start if a start delay is configured. Returns True if started """
+		if not self.cfg.start_delay:
+			await self.start(ctx)
+			return True
+		if self.start_at is None:
+			self.start_at = int(time()) + self.cfg.start_delay
+			await ctx.notice(self.qc.gt("**{queue}** is full, starting in {delay} unless someone leaves...").format(
+				queue=self.name, delay=seconds_to_str(self.cfg.start_delay)
+			))
+		return False
+
+	async def think(self, frame_time):
+		""" Called every bot tick: fire a pending delayed start, or pick up a full queue that never got started """
+		if not self.cfg.autostart or len(self.queue) < self.cfg.size:
+			self.start_at = None
+			return
+		if self.start_at is None:
+			self.start_at = frame_time + (self.cfg.start_delay or 0)
+		if frame_time >= self.start_at:
+			self.start_at = None
+			await self.start(bot.SystemContext(self.qc))
 
 	async def start(self, ctx):
 		if len(self.queue) < 2:
-			# raise bot.Exc.PubobotException(self.qc.gt("Not enough players to start the queue."))
-			return
+			raise bot.Exc.PubobotException(self.qc.gt("Not enough players to start the queue."))
 
-		players = list(self.queue)
+		self.start_at = None
+		players = self.queue[:self.cfg.size]  # anyone beyond the size stays queued for the next match
+		if self.cfg.team_size:
+			team_size = min(int(self.cfg.size / 2), int(self.cfg.team_size))
+		else:
+			team_size = int(self.cfg.size / 2)
+
+		# Create the match first so a failure here leaves the players in the queue
+		await bot.Match.new(ctx, self, players, team_size=team_size, **self._match_cfg())
+
 		dm_text = self.cfg.start_direct_msg or self.qc.gt("**{queue}** pickup has started @ {channel}!")
 		await self.qc.queue_started(
 			ctx,
@@ -485,12 +622,6 @@ class PickupQueue:
 				server=self.cfg.server
 			))
 		)
-		if self.cfg.team_size:
-			team_size = min(int(self.cfg.size / 2), int(self.cfg.team_size))
-		else:
-			team_size = int(self.cfg.size / 2)
-
-		await bot.Match.new(ctx, self, players, team_size=team_size, **self._match_cfg())
 
 	async def split(self, ctx, group_size: int = None, sort_by_rating: bool = False):
 		group_size = group_size or len(self.queue)//2
@@ -526,6 +657,14 @@ class PickupQueue:
 			team_names=self.cfg.team_names.split(" ") if self.cfg.team_names else None,
 		)
 
+	def fits(self, players):
+		""" Whether the given players can be added on top of the current queue """
+		return self.length + len([p for p in players if p not in self.queue]) <= self.cfg.size
+
+	async def readd(self, ctx, players):
+		""" Put players back at the front of the queue, starting the match if that fills it """
+		await self.revert(ctx, [], [p for p in players if p not in self.queue])
+
 	async def revert(self, ctx, not_ready, ready):
 		old_players = list(self.queue)
 		self.queue = list(ready)
@@ -533,8 +672,8 @@ class PickupQueue:
 			while len(self.queue) < self.cfg.size and len(old_players):
 				self.queue.append(old_players.pop(0))
 			if len(self.queue) >= self.cfg.size:
-				await self.start(ctx)
-				self.queue = list(old_players)
+				self.queue += old_players  # start() only takes the first size players, the rest keep waiting
+				await self.autostart(ctx)
 			else:
 				for p in ready:
 					await self.qc.update_expire(p)

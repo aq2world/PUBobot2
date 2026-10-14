@@ -8,6 +8,7 @@
 If you want to test the bot, feel free to join [**Pubobot2-dev** discord server](https://discord.gg/rjNt9nC).  
 All the bot settings can be found and configured on the [Web interface](https://pubobot.leshaka.xyz/).  
 For the complete list of commands see [COMMANDS.md](https://github.com/Leshaka/PUBobot2/blob/main/COMMANDS.md).  
+Map pools, map cooldowns, the start delay and the redo command are explained with examples in [QUEUE_FEATURES.md](QUEUE_FEATURES.md).  
 You can invite the bot to your discord server from the [web interface](https://pubobot.leshaka.xyz/) or use the direct [invite link](https://discord.com/oauth2/authorize?client_id=177021948935667713&scope=bot).
 
 ### Support
@@ -34,6 +35,10 @@ Hosting the service for everyone is not free, not mentioning the actual time and
 * * `nano config.cfg` - Fill config file with your discord bot instance credentials and mysql settings and save.
 * * Optionally, if you want to use other languages, run script to compile translations: `./compile_locales.sh`.
 * * `python3 PUBobot2.py` - If everything is installed correctly the bot should launch without any errors and give you CLI.
+
+### Running the tests
+* `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest pytest-asyncio`
+* `.venv/bin/python -m pytest` - The tests fake Discord and the database, so nothing else is needed.
 
 ## Credits
 Developer: **Leshaka**. Contact: leshkajm@ya.ru.  

@@ -65,8 +65,17 @@ def save_state():
 	for match in bot.active_matches:
 		matches.append(match.serialize())
 
+	map_history = [
+		dict(channel_id=qc.id, key=key, history=history)
+		for qc in bot.queue_channels.values()
+		for key, history in qc.map_history.items() if len(history)
+	]
+
 	f = open("saved_state.json", 'w')
-	f.write(json.dumps(dict(queues=queues, matches=matches, allow_offline=bot.allow_offline, expire=bot.expire.serialize())))
+	f.write(json.dumps(dict(
+		queues=queues, matches=matches, allow_offline=bot.allow_offline, expire=bot.expire.serialize(),
+		map_history=map_history
+	)))
 	f.close()
 
 
@@ -89,6 +98,10 @@ async def load_state():
 				log.error(f"Failed to load queue state ({qd.get('queue_id')}): {str(e)}")
 		else:
 			log.error(f"Got unknown queue type '{qd.get('queue_type')}'.")
+
+	for hd in data.get('map_history', []):
+		if (qc := bot.queue_channels.get(hd.get('channel_id'))) is not None:
+			qc.map_history[hd['key']] = [[str(m) for m in played] for played in hd.get('history', [])]
 
 	for md in data['matches']:
 		try:

@@ -10,6 +10,12 @@
 | /server               | Show queue server setting                               |
 | /maps                 | Show queue map list                                     |
 | /map                  | Show random map from a queue map list                   |
+| /map_cooldown         | Show the maps on cooldown for a queue                   |
+| /map_pools            | List the map pools of a queue, or the maps of one pool  |
+| /map_pool             | Select the map pool of a queue (moderator)              |
+| /map_pool_add         | Add maps to a pool, creating it if needed (moderator)   |
+| /map_pool_del         | Remove maps from a pool (moderator)                     |
+| /map_pool_destroy     | Delete a map pool (moderator)                           |
 | /auto_ready           | Confirm check-in automatically on next queue start      |
 | /expire               | Show or set your current expire timer                   |
 
@@ -23,6 +29,7 @@
 | /subme                | Request a substitute                                    |
 | /subfor               | Become a substitute                                     |
 | /teams                | Show current teams                                      |
+| /redo                 | Cancel the match and return everyone to a queue         |
 | /report               | Report match result                                     |
 
 #### Personal settings

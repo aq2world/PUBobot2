@@ -14,3 +14,6 @@ logs/
 saved_state.json
 __pycache__/config.cpython-310.pyc
 .vscode/settings.json
+.venv/
+.pytest_cache/
+tests/__pycache__/

@@ -345,6 +345,7 @@ class QueueChannel:
 		)
 		self.queues = []
 		self.last_promote = 0
+		self.map_history = dict()  # {cooldown key: [[maps of a finished match], ...]}, see PickupQueue.record_maps
 
 	async def update_info(self, text_channel):
 		self.cfg.cfg_info['channel_name'] = text_channel.name
@@ -383,7 +384,7 @@ class QueueChannel:
 
 	async def new_queue(self, ctx, name, size, kind):
 		kind.validate_name(name)
-		if 1 > size > 100:
+		if not 2 <= size <= 100:
 			raise ValueError("Queue size must be between 2 and 100.")
 		if name.lower() in [i.name.lower() for i in self.queues]:
 			raise ValueError("Queue with this name already exists.")
