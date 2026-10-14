@@ -345,6 +345,7 @@ class QueueChannel:
 		)
 		self.queues = []
 		self.last_promote = 0
+		self.map_history = dict()  # {cooldown key: [[maps of a finished match], ...]}, see PickupQueue.record_maps
 
 	async def update_info(self, text_channel):
 		self.cfg.cfg_info['channel_name'] = text_channel.name

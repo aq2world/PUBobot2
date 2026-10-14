@@ -25,6 +25,8 @@
 | !lb             | [`page #`]              | Show the leaderboard page specified                       |
 | !expire         |                       | Show your current expire timer                            |
 | !matches        |                       | Show active matches on the channel                        |
+| !cooldown       | `queue`                 | Show the maps on cooldown for a queue                     |
+| !pools          | `queue` [`pool`]          | List the map pools of a queue, or the maps of one pool    |
 | !lastgame / !lg | [`queue` / `@user`]         | Show last match played                                    |
 
 #### Actions
@@ -35,6 +37,14 @@
 | -queue / !remove |         | Remove yourself from a specified queue |
 | -- / !remove     |         | Remove yourself from all queues        |
 | !promote         | [`queue`] | Promote a queue                        |
+
+#### Map pools (moderator)
+| command       | arg1    | arg2   | arg3   | description                                      |
+|---------------|---------|--------|--------|--------------------------------------------------|
+| !pool         | `queue` | `pool` |        | Select the map pool, `none` for the maps list    |
+| !pooladd      | `queue` | `pool` | `maps` | Add comma separated maps, creating the pool      |
+| !pooldel      | `queue` | `pool` | `maps` | Remove comma separated maps from the pool        |
+| !pooldestroy  | `queue` | `pool` |        | Delete the pool                                  |
 
 #### Personal settings
 | command           | arg1                    | description                                                 |
@@ -57,6 +67,7 @@
 | !pick / !p | `@user`     |                        |              | Pick a player                   |
 | !subme     |             |                        |              | Request a sub                   |
 | !subfor    | `@user`     |                        |              | Sub a user                      |
+| !redo      | [`queue`]   | [`@user`...]           |              | Cancel the match and return everyone to a queue, captains only |
 
 #### Report match
 | command        | arg1       | arg2               | arg3      | description                      |

@@ -25,6 +25,14 @@ async def on_think(frame_time):
 			]))
 			bot.active_matches.remove(match)
 			break
+	for queue in list(bot.active_queues):
+		try:
+			await queue.think(frame_time)
+		except Exception as e:
+			log.error("\n".join([
+				f"Error at Queue.think() for '{queue.name}' ({queue.id}).",
+				f"{str(e)}. Traceback:\n{traceback.format_exc()}=========="
+			]))
 	await bot.expire.think(frame_time)
 	await bot.noadds.think(frame_time)
 	await bot.stats.jobs.think(frame_time)

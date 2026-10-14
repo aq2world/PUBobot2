@@ -4,7 +4,7 @@ __all__ = [
 ]
 
 import json
-from core.utils import find, split_big_text
+from core.utils import find, join_and, split_big_text
 from core.console import log
 import bot
 
@@ -25,10 +25,22 @@ async def delete_queue(ctx, queue: str):
 	ctx.check_perms(ctx.Perms.ADMIN)
 	if (q := find(lambda i: i.name.lower() == queue.lower(), ctx.qc.queues)) is None:
 		raise bot.Exc.NotFoundError(f"Queue '{queue}' not found on the channel.")
+	if any((m.queue is q for m in bot.active_matches)):
+		raise bot.Exc.PermissionError(f"Queue '{q.name}' has an active match, finish or cancel it first.")
+
+	# Drop queued players before the queue disappears so their expire timers do not dangle
+	members = q.pop_members(*q.queue)
 	await q.cfg.delete()
 	ctx.qc.queues.remove(q)
 	if q in bot.active_queues:
 		bot.active_queues.remove(q)
+	for m in members:
+		if not any((other.is_added(m) for other in ctx.qc.queues)):
+			bot.expire.cancel(ctx.qc, m)
+	if len(members):
+		await ctx.notice(ctx.qc.gt("{members} were removed from all queues ({reason}).").format(
+			members=join_and([m.mention for m in members]), reason=ctx.qc.gt("queue deleted")
+		))
 	await show_queues(ctx)
 
 

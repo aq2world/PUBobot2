@@ -12,7 +12,7 @@ from core.client import dc
 from .check_in import CheckIn
 from .draft import Draft
 from .embeds import Embeds
-from .map_stitch import map_stitch
+from .map_stitch import map_stitch_async, map_stitch_cleanup
 
 class Match:
 
@@ -69,7 +69,8 @@ class Match:
 			match.cfg['server'] = match.random_server()
 			bot.active_servers.append(match.cfg['server'])	
 
-		match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.last_maps)
+		if not len(match.check_in.maps):  # otherwise the maps are decided by the check-in vote
+			match.maps = match.random_maps(match.cfg['maps'], match.cfg['map_count'], queue.recent_maps())
 
 		match.init_captains(match.cfg['pick_captains'], match.cfg['captains_role_id'])
 		match.init_teams(match.cfg['pick_teams'])
@@ -106,7 +107,8 @@ class Match:
 			maps=self.maps,
 			state=self.state,
 			states=self.states,
-			ready_players=[p.id for p in self.check_in.ready_players if p]
+			ready_players=[p.id for p in self.check_in.ready_players if p],
+			check_in=self.check_in.serialize()
 		)
 
 	@classmethod
@@ -136,6 +138,7 @@ class Match:
 		for i in range(len(match.teams)):
 			match.teams[i].set(data['teams'][i])
 		match.check_in.ready_players = set(data['ready_players'])
+		match.check_in.restore(data.get('check_in'), data['players'])
 		match.maps = data['maps']
 		match.state = data['state']
 		match.states = data['states']
@@ -287,6 +290,13 @@ class Match:
 				await self.final_message(ctx)
 			await self.finish_match(ctx)
 
+	def is_captain(self, member):
+		""" Captains are the picked captains, or whoever leads a team once teams exist """
+		return member in self.captains or any((len(t) and t[0] == member for t in self.teams[:2]))
+
+	def has_captains(self):
+		return bool(len(self.captains) or any((len(t) for t in self.teams[:2])))
+
 	def rank_str(self, member):
 		return self.queue.qc.rating_rank(self.ratings[member.id])['rank']
 
@@ -396,12 +406,16 @@ class Match:
 
 	async def final_message(self, ctx):
 		#  Embed message with teams
-		maps_img = map_stitch(self.maps)
-		file  = File(maps_img, filename='voted-maps.jpg')
+		maps_img = await map_stitch_async(self.maps)
 		try:
-			await ctx.notice(embed=self.embeds.final_message('voted-maps.jpg'), file=file)
+			if maps_img:
+				await ctx.notice(embed=self.embeds.final_message('voted-maps.jpg'), file=File(maps_img, filename='voted-maps.jpg'))
+			else:
+				await ctx.notice(embed=self.embeds.final_message())
 		except DiscordException:
 			pass
+		finally:
+			map_stitch_cleanup(maps_img)
 
 	async def clear_server(self):
 		if (self.cfg['server'] in bot.active_servers):
@@ -410,9 +424,7 @@ class Match:
 	async def finish_match(self, ctx):
 		await self.clear_server()		
 		bot.active_matches.remove(self)
-		self.queue.last_maps += self.maps
-		keep = len(self.maps) * self.queue.cfg.map_cooldown
-		self.queue.last_maps = self.queue.last_maps[-keep:] if keep else []
+		self.queue.record_maps(self.maps)
 
 		if self.ranked:
 			await bot.stats.register_match_ranked(ctx, self)

@@ -1,6 +1,6 @@
 __all__ = [
 	'show_matches', 'show_teams', 'set_ready', 'sub_me', 'sub_for', 'put',
-	'sub_force', 'cap_me', 'cap_for', 'pick', 'report_admin', 'report', 'report_manual'
+	'sub_force', 'cap_me', 'cap_for', 'pick', 'report_admin', 'report', 'report_manual', 'redo', 'parse_redo_args'
 ]
 
 from nextcord import Member
@@ -83,6 +83,65 @@ async def put(ctx, match_id: int, player: Member, team_name: str):
 	if (match := find(lambda m: m.qc == ctx.qc and m.id == match_id, bot.active_matches)) is None:
 		raise bot.Exc.NotFoundError(ctx.qc.gt("Could not find match with specified id. Check `/matches`."))
 	await match.draft.put(ctx, player, team_name)
+
+
+@author_match
+async def redo(ctx, match: bot.Match, queue: str = None, exclude: List[Member] = None):
+	"""
+	Cancel the match and put its players back into a queue, captains and moderators only.
+	The players go to the named queue, or to the match queue, or to its redo queue when they do not fit any more.
+	Excluded players are left out of the queue.
+	"""
+	try:
+		ctx.check_perms(ctx.Perms.MODERATOR)
+	except bot.Exc.PermissionError:
+		if match.has_captains() and not match.is_captain(ctx.author):
+			raise bot.Exc.PermissionError(ctx.qc.gt("Only captains or moderators can redo the match."))
+
+	exclude = list(exclude or [])
+	if outsiders := [p for p in exclude if p not in match.players]:
+		raise bot.Exc.NotFoundError(ctx.qc.gt("{players} are not in the match.").format(
+			players=", ".join((p.mention for p in outsiders))
+		))
+	players = [p for p in match.players if p not in exclude]
+	if queue and queue.strip():
+		name = queue.strip()
+		if (target := find(lambda q: q.name.lower() == name.lower(), ctx.qc.queues)) is None:
+			raise bot.Exc.NotFoundError(f"Queue '{name}' not found on the channel.")
+		if not target.fits(players):
+			raise bot.Exc.ValueError(ctx.qc.gt("Not enough room in **{queue}** to redo the match.").format(queue=target.name))
+	elif match.queue.fits(players):
+		target = match.queue
+	else:
+		name = match.queue.cfg.redo_queue or ''
+		if (target := find(lambda q: q.name.lower() == name.lower(), ctx.qc.queues)) is None:
+			raise bot.Exc.NotFoundError(ctx.qc.gt(
+				"The players do not fit into **{queue}** any more and the redo queue '{redo}' does not exist."
+			).format(queue=match.queue.name, redo=name))
+		if not target.fits(players):
+			raise bot.Exc.ValueError(ctx.qc.gt("Not enough room in **{queue}** to redo the match.").format(queue=target.name))
+
+	await match.cancel(ctx)
+	text = ctx.qc.gt("{member} requested a redo, the players were put back into **{queue}**.").format(
+		member=ctx.author.mention, queue=target.name
+	)
+	if len(exclude):
+		text += " " + ctx.qc.gt("Left out: {players}.").format(players=", ".join((p.mention for p in exclude)))
+	await ctx.notice(text)
+	await target.readd(ctx, players)
+
+
+async def parse_redo_args(ctx, args: str):
+	""" Split '!redo [queue] [players...]' into a queue name and excluded members, in any order """
+	queue, exclude = None, []
+	for token in (args or '').split():
+		if (member := await ctx.get_member(token)) is not None:
+			exclude.append(member)
+		elif queue is None:
+			queue = token
+		else:
+			raise bot.Exc.SyntaxError(ctx.qc.gt("Player '{name}' not found.").format(name=token))
+	return queue, exclude
 
 
 async def report_admin(ctx, match_id: int, winner_team=None, draw=False, abort=False):

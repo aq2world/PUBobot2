@@ -13,6 +13,28 @@ async def queues(interaction: Interaction, queue: str) -> List[str]:
 		return []
 
 
+def _option(interaction: Interaction, name: str):
+	""" Find a top level or sub command option value by name """
+	options = interaction.data.get('options', [])
+	for opt in options:
+		if opt.get('name') == name:
+			return opt.get('value')
+		for sub in opt.get('options', []):
+			if sub.get('name') == name:
+				return sub.get('value')
+	return None
+
+
+async def map_pools(interaction: Interaction, pool: str) -> List[str]:
+	if (qc := bot.queue_channels.get(interaction.channel_id)) is None:
+		return []
+	if (queue_name := _option(interaction, 'queue')) is None:
+		return []
+	if (queue := find(lambda q: q.name.lower() == queue_name.lower(), qc.queues)) is None:
+		return []
+	return [p['name'] for p in queue.cfg.map_pools if p['name'].lower().startswith((pool or '').lower())][:25]
+
+
 async def qc_variables(interaction: Interaction, variable: str) -> List[str]:
 	return sorted([v for v in bot.QueueChannel.cfg_factory.variables.keys() if v.startswith(variable)])[:10]
 

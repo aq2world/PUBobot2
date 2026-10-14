@@ -7,7 +7,7 @@ from nextcord import File
 
 from core.utils import join_and
 from core.console import log
-from .map_stitch import map_stitch
+from .map_stitch import map_stitch_async, map_stitch_cleanup
 
 
 class CheckIn:
@@ -35,12 +35,9 @@ class CheckIn:
 		self.available_servers = self.m.available_servers()
 		self.server_votes = [set() for i in self.available_servers]
     
-		if len(self.m.cfg['maps']) > 1 and self.m.cfg['vote_maps']:			
-			self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.last_maps)
-			maps_img = map_stitch(self.maps)
-			# Generate map thumbnails
-			self.image = maps_img
-			#self.thumbnail = maps_img
+		# Map voting only happens during the check-in stage, so it needs a timeout to be set
+		if self.timeout and len(self.m.cfg['maps']) > 1 and self.m.cfg['vote_maps']:
+			self.maps = self.m.random_maps(self.m.cfg['maps'], self.m.cfg['vote_maps'], self.m.queue.recent_maps())
 			self.map_votes = [set() for i in self.maps]
 		else:
 			self.maps = []
@@ -57,18 +54,40 @@ class CheckIn:
 			else:
 				await self.finish(ctx)
 
-	async def start(self, ctx):	
+	def serialize(self):
+		return dict(
+			maps=list(self.maps),
+			map_votes=[list(votes) for votes in self.map_votes],
+			server_votes=[list(votes) for votes in self.server_votes],
+			discarded_players=[p.id for p in self.discarded_players if p]
+		)
+
+	def restore(self, data, players):
+		""" Restore voting state saved by serialize(), players are the match members """
+		if not data:
+			return
+		if len(data.get('maps', [])):
+			self.maps = [str(m) for m in data['maps']]
+			self.map_votes = [set(votes) for votes in data.get('map_votes', [])]
+			self.map_votes += [set() for i in range(len(self.maps) - len(self.map_votes))]
+			self.map_votes = self.map_votes[:len(self.maps)]
+		if len(data.get('server_votes', [])) == len(self.server_votes):
+			self.server_votes = [set(votes) for votes in data['server_votes']]
+		by_id = {p.id: p for p in players}
+		self.discarded_players = set(by_id[uid] for uid in data.get('discarded_players', []) if uid in by_id)
+
+	async def start(self, ctx):
 		# Map voting message
 		text = f"!spawn message {self.m.id}"
-		if self.image or self.thumbnail:
-			files = []
+		# Build the map collage here, in a worker thread, instead of blocking the bot in __init__
+		self.image = await map_stitch_async(self.maps)
+		try:
 			if self.image:
-				files.append(File(self.image, filename='maps-img.jpeg'))
-			#if self.thumbnail:
-			#	files.append(File(self.thumbnail, filename='maps-thumbs.jpeg'))
-			self.message = await ctx.channel.send(text, files=files)
-		else:
-			self.message = await ctx.channel.send(text)
+				self.message = await ctx.channel.send(text, files=[File(self.image, filename='maps-img.jpeg')])
+			else:
+				self.message = await ctx.channel.send(text)
+		finally:
+			map_stitch_cleanup(self.image)
 
 		emojis = [self.READY_EMOJI, '🔸', self.NOT_READY_EMOJI] if self.allow_discard else [self.READY_EMOJI]
 		
@@ -133,7 +152,9 @@ class CheckIn:
 
 		if len(not_ready) or not server_voted:
 			try:
-				await self.message.edit(content=None, embed=self.m.embeds.check_in(not_ready, self.m.cfg['vote_server'], 'maps-img.jpeg'))
+				await self.message.edit(content=None, embed=self.m.embeds.check_in(
+					not_ready, self.m.cfg['vote_server'], 'maps-img.jpeg' if self.image else None
+				))
 			except DiscordException:
 				pass
 		else:

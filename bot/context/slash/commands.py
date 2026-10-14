@@ -69,7 +69,7 @@ async def run_slash_coro(ctx: SlashContext, coro: Callable, **kwargs):
 		await ctx.error(str(e), title="RuntimeError")
 		log.error("\n".join([
 			f"Error processing /slash command {coro.__name__}.",
-			f"QC: {ctx.channel.guild.name}>#{ctx.channel.name} ({qc.id}).",
+			f"QC: {ctx.channel.guild.name}>#{ctx.channel.name} ({ctx.qc.id}).",
 			f"Member: {ctx.author} ({ctx.author.id}).",
 			f"Kwargs: {kwargs}.",
 			f"Exception: {str(e)}. Traceback:\n{traceback.format_exc()}=========="
@@ -492,6 +492,13 @@ async def maps(
 ): await run_slash(bot.commands.maps, interaction=interaction, queue=queue, one=False)
 maps.on_autocomplete("queue")(autocomplete.queues)
 
+@dc.slash_command(name='map_cooldown', description='Show the maps on cooldown for a queue.', **guild_kwargs)
+async def map_cooldown(
+		interaction: Interaction,
+		queue: str
+): await run_slash(bot.commands.map_cooldown, interaction=interaction, queue=queue)
+map_cooldown.on_autocomplete("queue")(autocomplete.queues)
+
 @dc.slash_command(name='map_pools', description='List a map pools for a queue or maps for a pool.', **guild_kwargs)
 async def map_pools(
 		interaction: Interaction,
@@ -499,6 +506,7 @@ async def map_pools(
 		pool: str = None
 ): await run_slash(bot.commands.show_map_pools, interaction=interaction, queue=queue, pool=pool)
 map_pools.on_autocomplete("queue")(autocomplete.queues)
+map_pools.on_autocomplete("pool")(autocomplete.map_pools)
 
 @dc.slash_command(name='map_pool', description='Set a new map pool for a queue.', **guild_kwargs)
 async def map_pool(
@@ -507,6 +515,7 @@ async def map_pool(
 		pool: str,
 ): await run_slash(bot.commands.set_map_pool, interaction=interaction, queue=queue, pool=pool)
 map_pool.on_autocomplete("queue")(autocomplete.queues)
+map_pool.on_autocomplete("pool")(autocomplete.map_pools)
 
 @dc.slash_command(name='map_pool_add', description='Add map(s) to existing or new pool.', **guild_kwargs)
 async def map_pool_add(
@@ -516,6 +525,7 @@ async def map_pool_add(
 		maps: str,
 ): await run_slash(bot.commands.map_pool_add, interaction=interaction, queue=queue, pool=pool, maps=maps)
 map_pool_add.on_autocomplete("queue")(autocomplete.queues)
+map_pool_add.on_autocomplete("pool")(autocomplete.map_pools)
 
 @dc.slash_command(name='map_pool_del', description='Remove map(s) from existing pool.', **guild_kwargs)
 async def map_pool_del(
@@ -525,6 +535,7 @@ async def map_pool_del(
 		maps: str,
 ): await run_slash(bot.commands.map_pool_remove, interaction=interaction, queue=queue, pool=pool, maps=maps)
 map_pool_del.on_autocomplete("queue")(autocomplete.queues)
+map_pool_del.on_autocomplete("pool")(autocomplete.map_pools)
 
 @dc.slash_command(name='map_pool_destroy', description='Destroy existing pool.', **guild_kwargs)
 async def map_pool_destroy(
@@ -533,6 +544,7 @@ async def map_pool_destroy(
 		pool: str,
 ): await run_slash(bot.commands.map_pool_destroy, interaction=interaction, queue=queue, pool=pool)
 map_pool_destroy.on_autocomplete("queue")(autocomplete.queues)
+map_pool_destroy.on_autocomplete("pool")(autocomplete.map_pools)
 
 
 @dc.slash_command(name='map', description='Print a random map.', **guild_kwargs)
@@ -565,6 +577,21 @@ async def _ready(
 async def _not_ready(
 		interaction: Interaction
 ): await run_slash(bot.commands.set_ready, interaction=interaction, is_ready=False)
+
+
+@dc.slash_command(name='redo', description='Cancel your match and put everyone back into a queue (captains).', **guild_kwargs)
+async def _redo(
+		interaction: Interaction,
+		queue: str = SlashOption(description="Queue to put the players into, defaults to the match queue", required=False),
+		exclude: str = SlashOption(description="Players to leave out of the queue, separated by space", required=False)
+):
+	async def _run(ctx, _exclude, **kwargs):
+		members = [await ctx.get_member(i) for i in _exclude.split()] if _exclude else []
+		if None in members:
+			raise bot.Exc.SyntaxError(ctx.qc.gt("Specified user not found."))
+		await bot.commands.redo(ctx, exclude=members, **kwargs)
+	await run_slash(_run, interaction=interaction, queue=queue, _exclude=exclude)
+_redo.on_autocomplete("queue")(autocomplete.queues)
 
 
 @dc.slash_command(name='subme', description='Request a substitute', **guild_kwargs)

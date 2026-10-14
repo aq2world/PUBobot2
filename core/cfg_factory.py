@@ -173,30 +173,37 @@ class Config:
 		self.p_key = row.pop(cfg_factory.table.p_key)
 
 	async def update(self, data: dict) -> None:
+		""" Validate, save to the database and only then apply the new values to this object """
 		guild = self._get_guild()
 
 		objects = dict()
-		# Validate data
+		# Validate data without touching the caller's dict or this object
 		for key, value in data.items():
 			if key not in self._factory.variables.keys():
 				raise KeyError("Variable '{}' not found.".format(key))
 			vo = self._factory.variables[key]
-			data[key] = await vo.validate(value, guild)
-			objects[key] = await vo.wrap(data[key], guild)
+			validated = await vo.validate(value, guild)
+			objects[key] = await vo.wrap(validated, guild)
 			vo.verify(objects[key])
 
-		# Update useful objects and push to database
+		if not len(objects):
+			return
+
+		# Push to database first so a failed write leaves the in-memory state untouched
+		pending = {
+			key: var.jsonify(objects[key] if key in objects else getattr(self, key))
+			for key, var in self._factory.variables.items()
+		}
+		await db.update(
+			self._factory.table.name, {'cfg_data': json.dumps(pending)},
+			{self._factory.table.p_key: self.p_key}
+		)
+
 		on_change_triggers = set()
-		if len(data):
-			for key, value in data.items():
-				vo = self._factory.variables[key]
-				setattr(self, key, objects[key])
-				if vo.on_change:
-					on_change_triggers.add(vo.on_change)
-			await db.update(
-				self._factory.table.name, {'cfg_data': json.dumps(self.jsonify())},
-				{self._factory.table.p_key: self.p_key}
-			)
+		for key, obj in objects.items():
+			setattr(self, key, obj)
+			if (vo := self._factory.variables[key]).on_change:
+				on_change_triggers.add(vo.on_change)
 
 		for f in on_change_triggers:
 			f(self)
@@ -222,6 +229,11 @@ class StrVar(Variable):
 	def __init__(self, name, **kwargs):
 		super().__init__(name, **kwargs)
 		self.ctype = db.types.str
+
+	async def validate(self, string, guild):
+		if type(string) == str:
+			string = string.strip()
+		return await super().validate(string, guild)
 
 
 class EmojiVar(Variable):
@@ -546,6 +558,8 @@ class VariableTable(Variable):
 
 
 class ListTable(Variable):
+	""" A flat list of strings """
+
 	def __init__(self, name, blank=None, default=[], **kwargs):
 		super().__init__(name, default=default, **kwargs)
 		self.blank = blank if blank else []
@@ -553,9 +567,18 @@ class ListTable(Variable):
 	async def validate(self, data, guild):
 		if type(data) == str:
 			data = json.loads(data)
-		elif type(data) != list:
+		if type(data) != list:
 			raise (ValueError('Value must be a a json string or a list.'))
-		return data
+
+		validated = []
+		for item in data:
+			if type(item) in (int, float):
+				item = str(item)
+			if type(item) != str:
+				raise ValueError(f"Items of {self.name} must be strings.")
+			if (item := item.strip()) and item not in validated:
+				validated.append(item)
+		return validated
 
 	def readable(self, l):
 		return str(l)
@@ -581,4 +604,5 @@ class Variables:
 
 class VerifyError(Exception):
 	def __init__(self, message=None):
+		super().__init__(message or "Verification failed.")
 		self.message = message
